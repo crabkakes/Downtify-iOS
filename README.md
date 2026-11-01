@@ -71,6 +71,15 @@ This application is engineered as a **100% native iOS application** (not a web w
 - **Local Network Access (`NSLocalNetworkUsageDescription`)**: Fully compliant with iOS Local Network security requirements for streaming lossless audio from home servers (e.g. `downtify.local:8000` or `192.168.x.x`).
 - **Swift 6 Concurrency**: Architecture marked with `@MainActor` and `Sendable` types for zero data race warnings under the Swift 6 compiler.
 
+### 6. Reverse Proxy & Gateway Accessibility
+- **Full Ingress Compatibility**: Downtify is engineered to run seamlessly behind **Nginx**, **Caddy 2**, **Traefik v3**, **Cloudflare Tunnel (cloudflared)**, and **Apache 2.4**.
+- **Unbuffered Audio Streaming**: Pre-configured configurations provide `proxy_buffering off;` and `flush_interval -1` to avoid proxy RAM accumulation and deliver instant FLAC stream seeking.
+- **HTTP Byte-Range Requests (`206 Partial Content`)**: Passes `Range` and `If-Range` headers so Apple's `AVPlayer` and web audio can scrub smoothly without redownloading tracks.
+- **Subpath & Subdomain Support**: Works whether hosted at root (`https://music.home.lab/`) or behind a subpath (`https://home.lab/downtify/`). Vite bundles use relative base paths (`./`) to prevent 404s.
+- **Zero-Trust & Custom Proxy Headers**: Native iOS client (`AVURLAssetHTTPHeaderFieldsKey`) allows passing Cloudflare Access Service Tokens (`CF-Access-Client-Id`, `CF-Access-Client-Secret`) or Bearer tokens through reverse proxies.
+- **Self-Signed SSL Support**: Built-in `ProxySSLSecurityDelegate` allows the iOS app to optionally trust local home lab / internal CA SSL certificates.
+- *Detailed configuration files and Docker Compose templates are available in [`REVERSE_PROXY.md`](REVERSE_PROXY.md).*
+
 ---
 
 ## 🏛️ Native iOS Source Structure (`/ios/Downtify/`)

@@ -90,6 +90,10 @@ export interface ServerConnection {
   pingMs: number;
   serverVersion: string;
   isDemo: boolean;
+  reverseProxySubpath?: string; // e.g. "/downtify" or ""
+  customHeaders?: Record<string, string>; // e.g. { "CF-Access-Client-Id": "..." }
+  trustSelfSignedCerts?: boolean;
+  proxyType?: 'none' | 'nginx' | 'caddy' | 'traefik' | 'cloudflare_tunnel' | 'apache';
   libraryStats?: {
     totalTracks: number;
     totalPlaylists: number;

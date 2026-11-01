@@ -17,7 +17,14 @@ public class DowntifyAPIService: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
 
+    private var session: URLSession!
+    private let securityDelegate = ProxySSLSecurityDelegate()
+
     private init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 300
+        self.session = URLSession(configuration: config, delegate: securityDelegate, delegateQueue: nil)
         loadMockData()
     }
 
@@ -36,13 +43,84 @@ public class DowntifyAPIService: ObservableObject {
         self.fetchServerLibrary()
     }
 
-    public func connectManually(url: String, user: String, token: String) {
+    public func connectManually(
+        url: String,
+        user: String,
+        token: String,
+        subpath: String = "",
+        customHeaders: [String: String] = [:],
+        trustSelfSigned: Bool = false
+    ) {
         self.connectionInfo.serverUrl = url
         self.connectionInfo.username = user
         self.connectionInfo.token = token
+        self.connectionInfo.subpath = subpath
+        self.connectionInfo.customHeaders = customHeaders
+        self.connectionInfo.trustSelfSignedCerts = trustSelfSigned
+        self.securityDelegate.allowSelfSigned = trustSelfSigned
         self.connectionInfo.isConnected = true
         self.isConnected = true
         self.fetchServerLibrary()
+    }
+
+    /// Resolves endpoint URL considering any reverse proxy subpath (e.g. /downtify/api/stream)
+    public func endpointURL(_ path: String) -> URL? {
+        guard let baseURL = connectionInfo.resolvedBaseURL else { return nil }
+        let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
+        return baseURL.appendingPathComponent(cleanPath)
+    }
+
+    /// Builds a URLRequest configured with Bearer tokens and reverse proxy headers (e.g., CF-Access)
+    public func createURLRequest(for endpoint: String, method: String = "GET") -> URLRequest? {
+        guard let url = endpointURL(endpoint) else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+
+        // Standard Authorization Bearer
+        if let token = connectionInfo.token, !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        // Forward configured Reverse Proxy headers (Cloudflare Access, Authelia, Authentik)
+        for (key, val) in connectionInfo.customHeaders {
+            request.setValue(val, forHTTPHeaderField: key)
+        }
+
+        request.setValue("Downtify-iOS-Client/2.8", forHTTPHeaderField: "User-Agent")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        return request
+    }
+
+    /// Diagnostic test for reverse proxy latency, headers, and reachability
+    public func testReverseProxyConnection(completion: @escaping (Bool, Int, String?) -> Void) {
+        guard let req = createURLRequest(for: "api/health") else {
+            completion(false, 0, "Invalid server URL or subpath configuration")
+            return
+        }
+
+        let start = Date()
+        session.dataTask(with: req) { _, response, error in
+            let elapsed = Int(Date().timeIntervalSince(start) * 1000)
+            if let error = error {
+                DispatchQueue.main.async {
+                    completion(false, elapsed, error.localizedDescription)
+                }
+                return
+            }
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                DispatchQueue.main.async {
+                    completion(false, elapsed, "Unknown response type")
+                }
+                return
+            }
+
+            let isSuccess = (200...299).contains(httpResponse.statusCode)
+            DispatchQueue.main.async {
+                self.connectionInfo.pingMs = elapsed
+                completion(isSuccess, elapsed, isSuccess ? nil : "HTTP \(httpResponse.statusCode)")
+            }
+        }.resume()
     }
 
     public func disconnect() {
@@ -177,3 +255,23 @@ public class DowntifyAPIService: ObservableObject {
         ]
     }
 }
+
+/// URLSession delegate that handles local reverse proxy SSL certificates (e.g. self-signed home lab certificates)
+public class ProxySSLSecurityDelegate: NSObject, URLSessionDelegate {
+    public var allowSelfSigned: Bool = false
+
+    public func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        if allowSelfSigned && challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
+            if let serverTrust = challenge.protectionSpace.serverTrust {
+                completionHandler(.useCredential, URLCredential(trust: serverTrust))
+                return
+            }
+        }
+        completionHandler(.performDefaultHandling, nil)
+    }
+}
+

@@ -57,10 +57,17 @@ public class AudioPlayerService: NSObject, ObservableObject {
             let playerItem = AVPlayerItem(url: localURL)
             self.player = AVPlayer(playerItem: playerItem)
         } else {
-            // Stream over HTTP/HTTPS from Downtify Server
-            let streamURLString = "\(DowntifyAPIService.shared.connectionInfo.serverURL)/api/stream/\(track.id)"
-            if let streamURL = URL(string: streamURLString) {
-                let playerItem = AVPlayerItem(url: streamURL)
+            // Stream over HTTP/HTTPS from Downtify Server (handles Reverse Proxy subpath & custom headers)
+            if let streamURL = DowntifyAPIService.shared.endpointURL("api/stream/\(track.id)") {
+                var headers = DowntifyAPIService.shared.connectionInfo.customHeaders
+                if let token = DowntifyAPIService.shared.connectionInfo.token, !token.isEmpty {
+                    headers["Authorization"] = "Bearer \(token)"
+                }
+                headers["User-Agent"] = "Downtify-iOS-AVPlayer/2.8"
+
+                // AVURLAssetHTTPHeaderFieldsKey allows AVPlayer to stream through authenticated reverse proxies
+                let asset = AVURLAsset(url: streamURL, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+                let playerItem = AVPlayerItem(asset: asset)
                 self.player = AVPlayer(playerItem: playerItem)
             }
         }

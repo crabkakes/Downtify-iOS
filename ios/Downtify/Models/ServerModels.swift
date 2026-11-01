@@ -15,6 +15,9 @@ public struct ServerConnectionInfo: Codable {
     public var totalTracks: Int
     public var totalPlaylists: Int
     public var totalStorageGb: Double
+    public var subpath: String
+    public var customHeaders: [String: String]
+    public var trustSelfSignedCerts: Bool
 
     public init(
         serverUrl: String = "https://downtify.local:8000",
@@ -25,7 +28,10 @@ public struct ServerConnectionInfo: Codable {
         isConnected: Bool = true,
         totalTracks: Int = 142,
         totalPlaylists: Int = 8,
-        totalStorageGb: Double = 1.4
+        totalStorageGb: Double = 1.4,
+        subpath: String = "",
+        customHeaders: [String: String] = [:],
+        trustSelfSignedCerts: Bool = false
     ) {
         self.serverUrl = serverUrl
         self.username = username
@@ -36,6 +42,24 @@ public struct ServerConnectionInfo: Codable {
         self.totalTracks = totalTracks
         self.totalPlaylists = totalPlaylists
         self.totalStorageGb = totalStorageGb
+        self.subpath = subpath
+        self.customHeaders = customHeaders
+        self.trustSelfSignedCerts = trustSelfSignedCerts
+    }
+
+    /// Safely resolves the server URL combined with any reverse proxy subpath prefix (e.g., /downtify)
+    public var resolvedBaseURL: URL? {
+        var base = serverUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+        if base.hasSuffix("/") {
+            base = String(base.dropLast())
+        }
+        let cleanSubpath = subpath.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanSubpath.isEmpty {
+            let prefix = cleanSubpath.hasPrefix("/") ? cleanSubpath : "/\(cleanSubpath)"
+            let normalized = prefix.hasSuffix("/") ? String(prefix.dropLast()) : prefix
+            base += normalized
+        }
+        return URL(string: base)
     }
 }
 

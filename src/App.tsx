@@ -17,6 +17,7 @@ import { ID3EditorModal } from './components/ID3EditorModal';
 import { ServerPairingModal } from './components/ServerPairingModal';
 import { CarPlaySimulatorModal } from './components/CarPlaySimulatorModal';
 import { ScreenshotsShowcaseModal } from './components/ScreenshotsShowcaseModal';
+import { ReverseProxyModal } from './components/ReverseProxyModal';
 
 import {
   Track,
@@ -111,6 +112,7 @@ export default function App() {
   const [isServerPairingOpen, setIsServerPairingOpen] = useState(false);
   const [isCarPlayOpen, setIsCarPlayOpen] = useState(false);
   const [isScreenshotsOpen, setIsScreenshotsOpen] = useState(false);
+  const [isReverseProxyOpen, setIsReverseProxyOpen] = useState(false);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
 
   // Active Server Downloads
@@ -474,6 +476,7 @@ export default function App() {
             onOpenServerPairing={() => setIsServerPairingOpen(true)}
             onOpenCarPlay={() => setIsCarPlayOpen(true)}
             onOpenScreenshots={() => setIsScreenshotsOpen(true)}
+            onOpenReverseProxy={() => setIsReverseProxyOpen(true)}
             onDownloadAllLiked={handleDownloadAllLiked}
             onClearOfflineCache={handleClearOfflineCache}
           />
@@ -538,11 +541,25 @@ export default function App() {
         onClose={() => setIsScreenshotsOpen(false)}
       />
 
+      {/* Reverse Proxy Config & Tester Modal */}
+      <ReverseProxyModal
+        isOpen={isReverseProxyOpen}
+        onClose={() => setIsReverseProxyOpen(false)}
+        connection={settings.serverConnection}
+        onUpdateConnection={(newConn) => {
+          setSettings((s) => ({
+            ...s,
+            serverConnection: { ...s.serverConnection, ...newConn },
+          }));
+        }}
+      />
+
       {/* Server Pairing Modal */}
       <ServerPairingModal
         isOpen={isServerPairingOpen}
         onClose={() => setIsServerPairingOpen(false)}
         connection={settings.serverConnection}
+        onOpenReverseProxyGuide={() => setIsReverseProxyOpen(true)}
         onConnect={(newConn) => {
           setSettings((s) => ({
             ...s,

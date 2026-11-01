@@ -11,6 +11,9 @@ struct ServerPairingView: View {
     @State private var serverUrl = "https://downtify.local:8000"
     @State private var username = "alex"
     @State private var token = ""
+    @State private var subpath = ""
+    @State private var cfClientId = ""
+    @State private var trustSelfSigned = false
     @State private var selectedTab = 0
     @State private var isSimulatingQRScan = false
 
@@ -79,36 +82,79 @@ struct ServerPairingView: View {
                     }
                     .frame(maxHeight: .infinity)
                 } else {
-                    // Manual Login Form
-                    VStack(spacing: 16) {
-                        TextField("Server URL (e.g. https://downtify.local:8000)", text: $serverUrl)
-                            .padding()
-                            .background(Color(white: 0.12))
-                            .cornerRadius(12)
-                            .foregroundColor(.white)
-
-                        TextField("Username", text: $username)
-                            .padding()
-                            .background(Color(white: 0.12))
-                            .cornerRadius(12)
-                            .foregroundColor(.white)
-
-                        SecureField("Password or Auth Token", text: $token)
-                            .padding()
-                            .background(Color(white: 0.12))
-                            .cornerRadius(12)
-                            .foregroundColor(.white)
-
-                        Button {
-                            apiService.connectManually(url: serverUrl, user: username, token: token)
-                        } label: {
-                            Text("Connect to Server")
-                                .fontWeight(.semibold)
-                                .foregroundColor(.black)
-                                .frame(maxWidth: .infinity)
+                    // Manual Login Form with Reverse Proxy Support
+                    ScrollView {
+                        VStack(spacing: 14) {
+                            TextField("Server URL (e.g. https://music.yourdomain.com)", text: $serverUrl)
                                 .padding()
-                                .background(Color.emeraldGreen)
-                                .cornerRadius(14)
+                                .background(Color(white: 0.12))
+                                .cornerRadius(12)
+                                .foregroundColor(.white)
+
+                            TextField("Username", text: $username)
+                                .padding()
+                                .background(Color(white: 0.12))
+                                .cornerRadius(12)
+                                .foregroundColor(.white)
+
+                            SecureField("Password or Auth Token", text: $token)
+                                .padding()
+                                .background(Color(white: 0.12))
+                                .cornerRadius(12)
+                                .foregroundColor(.white)
+
+                            // Reverse Proxy Accordion
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("REVERSE PROXY & GATEWAY")
+                                    .font(.caption2)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.emeraldGreen)
+
+                                TextField("Subpath prefix (e.g. /downtify or empty)", text: $subpath)
+                                    .padding(12)
+                                    .background(Color(white: 0.08))
+                                    .cornerRadius(10)
+                                    .foregroundColor(.white)
+                                    .font(.system(.caption, design: .monospaced))
+
+                                TextField("Cloudflare Access Client ID (Optional)", text: $cfClientId)
+                                    .padding(12)
+                                    .background(Color(white: 0.08))
+                                    .cornerRadius(10)
+                                    .foregroundColor(.white)
+                                    .font(.system(.caption, design: .monospaced))
+
+                                Toggle("Trust Self-Signed SSL (LAN / Home Lab)", isOn: $trustSelfSigned)
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .tint(.emeraldGreen)
+                            }
+                            .padding()
+                            .background(Color(white: 0.10))
+                            .cornerRadius(12)
+
+                            Button {
+                                var headers: [String: String] = [:]
+                                if !cfClientId.trimmingCharacters(in: .whitespaces).isEmpty {
+                                    headers["CF-Access-Client-Id"] = cfClientId.trimmingCharacters(in: .whitespaces)
+                                }
+                                apiService.connectManually(
+                                    url: serverUrl,
+                                    user: username,
+                                    token: token,
+                                    subpath: subpath,
+                                    customHeaders: headers,
+                                    trustSelfSigned: trustSelfSigned
+                                )
+                            } label: {
+                                Text("Connect to Server")
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.black)
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color.emeraldGreen)
+                                    .cornerRadius(14)
+                            }
                         }
                     }
                     .padding(.horizontal)
