@@ -1,6 +1,7 @@
 export type AudioFormat = 'mp3' | 'flac' | 'm4a' | 'ogg' | 'opus';
 export type BitrateOption = '128k' | '192k' | '256k' | '320k' | 'lossless';
 export type SourcePlatform = 'spotify' | 'youtube' | 'soundcloud' | 'local' | 'csv';
+export type StreamingQuality = 'original' | 'high_320' | 'normal_192' | 'saver_128';
 
 export interface LyricLine {
   time: number; // in seconds
@@ -10,8 +11,8 @@ export interface LyricLine {
 export interface TrackSynthConfig {
   bpm: number;
   rootFreq: number;
-  chords: number[][]; // chord frequencies in Hz
-  melodyNotes: number[]; // melody note frequencies
+  chords: number[][];
+  melodyNotes: number[];
   genre: 'synthwave' | 'pop' | 'rock' | 'lofi' | 'electronic' | 'rnb';
 }
 
@@ -35,6 +36,9 @@ export interface Track {
   isrc?: string;
   synthConfig?: TrackSynthConfig;
   customAudioUrl?: string;
+  isLiked?: boolean;
+  isOfflineCached?: boolean;
+  streamQuality?: string;
 }
 
 export type DownloadStatus = 
@@ -75,6 +79,30 @@ export interface Playlist {
   monitored: boolean;
   lastSynced?: string;
   sourceUrl?: string;
+  isSpecialLiked?: boolean;
+}
+
+export interface ServerConnection {
+  status: 'connected' | 'connecting' | 'disconnected';
+  serverUrl: string;
+  username: string;
+  token?: string;
+  pingMs: number;
+  serverVersion: string;
+  isDemo: boolean;
+  libraryStats?: {
+    totalTracks: number;
+    totalPlaylists: number;
+    totalStorageGb: number;
+  };
+}
+
+export interface CastDevice {
+  id: string;
+  name: string;
+  type: 'airplay' | 'chromecast' | 'sonos' | 'device';
+  description: string;
+  isConnected: boolean;
 }
 
 export interface DowntifySettings {
@@ -87,4 +115,12 @@ export interface DowntifySettings {
   deviceFrameMode: 'iphone' | 'fullscreen';
   hapticsEnabled: boolean;
   storageLimitMb: number;
+  // Downtify Mobile Client Settings (from downtify-android)
+  serverConnection: ServerConnection;
+  wifiStreamingQuality: StreamingQuality;
+  cellularStreamingQuality: StreamingQuality;
+  offlineDownloadQuality: BitrateOption;
+  offlineOnlyMode: boolean;
+  normalizeVolume: boolean;
+  crossfadeSeconds: number;
 }

@@ -20,6 +20,9 @@ import {
   Info,
   Check,
   Share2,
+  Heart,
+  ArrowDownCircle,
+  Car,
 } from 'lucide-react';
 import { Track } from '../types';
 import { audioEngine } from '../utils/audioEngine';
@@ -39,6 +42,9 @@ interface NowPlayingSheetProps {
   onPrev: () => void;
   queue: Track[];
   onOpenTagEditor: (track: Track) => void;
+  onToggleLike?: (trackId: string) => void;
+  onToggleCacheOffline?: (trackId: string) => void;
+  onOpenCarPlay?: () => void;
 }
 
 export const NowPlayingSheet: React.FC<NowPlayingSheetProps> = ({
@@ -54,6 +60,9 @@ export const NowPlayingSheet: React.FC<NowPlayingSheetProps> = ({
   onPrev,
   queue,
   onOpenTagEditor,
+  onToggleLike,
+  onToggleCacheOffline,
+  onOpenCarPlay,
 }) => {
   const [activeTab, setActiveTab] = useState<'player' | 'lyrics' | 'queue'>('player');
   const [isShuffle, setIsShuffle] = useState(false);
@@ -185,10 +194,32 @@ export const NowPlayingSheet: React.FC<NowPlayingSheetProps> = ({
                       {track.artist}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] font-mono text-emerald-400 shrink-0">
-                    <span className="uppercase">{track.format}</span>
-                    <span>·</span>
-                    <span>{track.bitrate}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => {
+                        audioEngine.playHapticClick();
+                        if (onToggleLike) onToggleLike(track.id);
+                      }}
+                      className="p-1.5 text-neutral-400 hover:text-white transition-colors"
+                      title={track.isLiked ? 'Unlike track' : 'Like track on server'}
+                    >
+                      <Heart className={`w-5 h-5 ${track.isLiked ? 'text-emerald-400 fill-emerald-400' : ''}`} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        audioEngine.playHapticClick();
+                        if (onToggleCacheOffline) onToggleCacheOffline(track.id);
+                      }}
+                      className="p-1.5 text-neutral-400 hover:text-white transition-colors"
+                      title={track.isOfflineCached ? 'Cached offline on iPhone' : 'Download for offline'}
+                    >
+                      <ArrowDownCircle className={`w-5 h-5 ${track.isOfflineCached ? 'text-emerald-400 fill-emerald-500/20' : ''}`} />
+                    </button>
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[11px] font-mono text-emerald-400">
+                      <span className="uppercase">{track.format}</span>
+                      <span>·</span>
+                      <span>{track.bitrate}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -417,6 +448,20 @@ export const NowPlayingSheet: React.FC<NowPlayingSheetProps> = ({
             <Airplay className="w-5 h-5" />
             <span className="text-[10px] font-medium">AirPlay</span>
           </button>
+
+          {onOpenCarPlay && (
+            <button
+              onClick={() => {
+                audioEngine.playHapticClick();
+                onOpenCarPlay();
+              }}
+              className="flex flex-col items-center gap-1 p-2 rounded-xl text-neutral-400 hover:text-white transition-colors"
+              title="Launch Apple CarPlay Simulator"
+            >
+              <Car className="w-5 h-5" />
+              <span className="text-[10px] font-medium">CarPlay</span>
+            </button>
+          )}
 
           <button
             onClick={() => {

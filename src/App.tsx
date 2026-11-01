@@ -1,31 +1,44 @@
 /**
  * Downtify iOS
- * Native iOS music downloader and offline player inspired by Henrique Sebastião's Downtify.
- * Converts Spotify, YouTube Music, and SoundCloud links into tagged audio with time-synced lyrics.
+ * Native iOS Client Companion inspired by henriquesebastiao/downtify-android
+ * Features Server Pairing, Offline Caching, Apple CarPlay, and Time-Synced Lyrics.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { IPhoneShell } from './components/IPhoneShell';
 import { TabBar, TabType } from './components/TabBar';
-import { DownloaderView } from './components/DownloaderView';
+import { HomeView } from './components/HomeView';
+import { SearchView } from './components/SearchView';
 import { LibraryView } from './components/LibraryView';
 import { SettingsView } from './components/SettingsView';
 import { MiniPlayerBar } from './components/MiniPlayerBar';
 import { NowPlayingSheet } from './components/NowPlayingSheet';
 import { ID3EditorModal } from './components/ID3EditorModal';
+import { ServerPairingModal } from './components/ServerPairingModal';
+import { CarPlaySimulatorModal } from './components/CarPlaySimulatorModal';
 
-import { Track, Playlist, DownloadJob, DownloadStatus, DowntifySettings, AudioFormat, BitrateOption } from './types';
+import {
+  Track,
+  Playlist,
+  DownloadJob,
+  DownloadStatus,
+  DowntifySettings,
+  AudioFormat,
+  BitrateOption,
+  ServerConnection,
+} from './types';
 import { INITIAL_TRACKS, INITIAL_PLAYLISTS } from './data/mockCatalog';
 import { audioEngine } from './utils/audioEngine';
 import { createDownloadJob, buildCompletedTrack } from './utils/downloadPipeline';
+import { nativeIOSBridge } from './native/iosBridge';
 import confetti from 'canvas-confetti';
 
-const STORAGE_KEY_TRACKS = 'downtify_ios_tracks_v1';
-const STORAGE_KEY_PLAYLISTS = 'downtify_ios_playlists_v1';
-const STORAGE_KEY_SETTINGS = 'downtify_ios_settings_v1';
+const STORAGE_KEY_TRACKS = 'downtify_ios_tracks_v2';
+const STORAGE_KEY_PLAYLISTS = 'downtify_ios_playlists_v2';
+const STORAGE_KEY_SETTINGS = 'downtify_ios_settings_v2';
 
 export default function App() {
-  // Settings
+  // Settings & Server Connection
   const [settings, setSettings] = useState<DowntifySettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SETTINGS);
@@ -43,6 +56,26 @@ export default function App() {
       deviceFrameMode: 'iphone',
       hapticsEnabled: true,
       storageLimitMb: 1024,
+      serverConnection: {
+        status: 'connected',
+        serverUrl: 'https://downtify.local:8000',
+        username: 'enrico',
+        token: 'dt_auth_token_98234',
+        pingMs: 18,
+        serverVersion: 'v2.8.4',
+        isDemo: true,
+        libraryStats: {
+          totalTracks: 142,
+          totalPlaylists: 8,
+          totalStorageGb: 1.4,
+        },
+      },
+      wifiStreamingQuality: 'original',
+      cellularStreamingQuality: 'high_320',
+      offlineDownloadQuality: 'lossless',
+      offlineOnlyMode: false,
+      normalizeVolume: true,
+      crossfadeSeconds: 2,
     };
   });
 
@@ -54,7 +87,11 @@ export default function App() {
     } catch {
       // ignore
     }
-    return INITIAL_TRACKS;
+    return INITIAL_TRACKS.map((t, idx) => ({
+      ...t,
+      isLiked: idx === 0 || idx === 1 || idx === 3,
+      isOfflineCached: idx === 0 || idx === 1,
+    }));
   });
 
   const [playlists, setPlaylists] = useState<Playlist[]>(() => {
@@ -67,20 +104,22 @@ export default function App() {
     return INITIAL_PLAYLISTS;
   });
 
-  // Navigation & View state
-  const [activeTab, setActiveTab] = useState<TabType>('downloader');
+  // Navigation & Modals
+  const [activeTab, setActiveTab] = useState<TabType>('home');
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
+  const [isServerPairingOpen, setIsServerPairingOpen] = useState(false);
+  const [isCarPlayOpen, setIsCarPlayOpen] = useState(false);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
 
-  // Active Downloads
+  // Active Server Downloads
   const [activeJobs, setActiveJobs] = useState<DownloadJob[]>([]);
 
-  // Audio Playback State
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(INITIAL_TRACKS[0]);
+  // Playback State
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(tracks[0] || null);
   const [playbackState, setPlaybackState] = useState({
     isPlaying: false,
     currentTime: 0,
-    duration: INITIAL_TRACKS[0]?.duration || 180,
+    duration: tracks[0]?.duration || 180,
   });
   const [volume, setVolume] = useState(0.85);
 
@@ -109,6 +148,26 @@ export default function App() {
     }
   }, [settings]);
 
+  // Audio Playback Handlers
+  const handlePlayTrack = useCallback((track: Track) => {
+    setCurrentTrack(track);
+    audioEngine.playTrack(track, 0);
+  }, []);
+
+  const handleNextTrack = useCallback(() => {
+    if (!currentTrack || tracks.length === 0) return;
+    const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
+    const nextIndex = (currentIndex + 1) % tracks.length;
+    handlePlayTrack(tracks[nextIndex]);
+  }, [currentTrack, tracks, handlePlayTrack]);
+
+  const handlePrevTrack = useCallback(() => {
+    if (!currentTrack || tracks.length === 0) return;
+    const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
+    const prevIndex = (currentIndex - 1 + tracks.length) % tracks.length;
+    handlePlayTrack(tracks[prevIndex]);
+  }, [currentTrack, tracks, handlePlayTrack]);
+
   // Subscribe to audio engine
   useEffect(() => {
     const unsubscribe = audioEngine.subscribe((st) => {
@@ -121,119 +180,95 @@ export default function App() {
 
     const handleHomeBar = () => {
       setIsNowPlayingOpen(false);
+      setIsCarPlayOpen(false);
       setEditingTrack(null);
     };
 
     window.addEventListener('downtify:trackEnded', handleTrackEnded);
     window.addEventListener('downtify:homeBarTap', handleHomeBar);
 
+    // Native iOS Remote Commands
+    const handleRemotePlay = () => audioEngine.resume();
+    const handleRemotePause = () => audioEngine.pause();
+    const handleRemoteNext = () => handleNextTrack();
+    const handleRemotePrev = () => handlePrevTrack();
+    const handleRemoteSeek = (e: any) => {
+      if (typeof e.detail === 'number') audioEngine.seek(e.detail);
+    };
+
+    window.addEventListener('downtify:remotePlay', handleRemotePlay);
+    window.addEventListener('downtify:remotePause', handleRemotePause);
+    window.addEventListener('downtify:remoteNext', handleRemoteNext);
+    window.addEventListener('downtify:remotePrev', handleRemotePrev);
+    window.addEventListener('downtify:remoteSeek', handleRemoteSeek);
+
     return () => {
       unsubscribe();
       window.removeEventListener('downtify:trackEnded', handleTrackEnded);
       window.removeEventListener('downtify:homeBarTap', handleHomeBar);
+      window.removeEventListener('downtify:remotePlay', handleRemotePlay);
+      window.removeEventListener('downtify:remotePause', handleRemotePause);
+      window.removeEventListener('downtify:remoteNext', handleRemoteNext);
+      window.removeEventListener('downtify:remotePrev', handleRemotePrev);
+      window.removeEventListener('downtify:remoteSeek', handleRemoteSeek);
     };
-  }, [tracks, currentTrack]);
+  }, [tracks, currentTrack, handleNextTrack, handlePrevTrack]);
 
-  // Update volume in audio engine
+  // Sync with native MPNowPlayingInfoCenter & Lock Screen
+  useEffect(() => {
+    nativeIOSBridge.updateNowPlayingInfo(
+      currentTrack,
+      playbackState.isPlaying,
+      playbackState.currentTime
+    );
+  }, [currentTrack, playbackState.isPlaying, playbackState.currentTime]);
+
   const handleVolumeChange = (newVol: number) => {
     setVolume(newVol);
     audioEngine.setVolume(newVol);
   };
 
-  // Play track handler
-  const handlePlayTrack = useCallback((track: Track) => {
-    setCurrentTrack(track);
-    audioEngine.playTrack(track, 0);
-  }, []);
+  // Toggle Like (Heart)
+  const handleToggleLike = (trackId: string) => {
+    setTracks((prev) =>
+      prev.map((t) => (t.id === trackId ? { ...t, isLiked: !t.isLiked } : t))
+    );
+    if (currentTrack?.id === trackId) {
+      setCurrentTrack((c) => (c ? { ...c, isLiked: !c.isLiked } : null));
+    }
+  };
 
-  // Next track in queue
-  const handleNextTrack = useCallback(() => {
-    if (!currentTrack || tracks.length === 0) return;
-    const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
-    const nextIndex = (currentIndex + 1) % tracks.length;
-    handlePlayTrack(tracks[nextIndex]);
-  }, [currentTrack, tracks, handlePlayTrack]);
+  // Toggle Offline Cache (Download to device)
+  const handleToggleCacheOffline = (trackId: string) => {
+    setTracks((prev) =>
+      prev.map((t) => (t.id === trackId ? { ...t, isOfflineCached: !t.isOfflineCached } : t))
+    );
+    if (currentTrack?.id === trackId) {
+      setCurrentTrack((c) => (c ? { ...c, isOfflineCached: !c.isOfflineCached } : null));
+    }
+  };
 
-  // Previous track in queue
-  const handlePrevTrack = useCallback(() => {
-    if (!currentTrack || tracks.length === 0) return;
-    const currentIndex = tracks.findIndex((t) => t.id === currentTrack.id);
-    const prevIndex = (currentIndex - 1 + tracks.length) % tracks.length;
-    handlePlayTrack(tracks[prevIndex]);
-  }, [currentTrack, tracks, handlePlayTrack]);
+  // Download All Liked Songs
+  const handleDownloadAllLiked = () => {
+    setTracks((prev) =>
+      prev.map((t) => (t.isLiked ? { ...t, isOfflineCached: true } : t))
+    );
+  };
 
-  // Start new download job
-  const handleStartDownload = (url: string, format: AudioFormat, bitrate: BitrateOption) => {
+  // Clear Offline Cache
+  const handleClearOfflineCache = () => {
+    setTracks((prev) =>
+      prev.map((t) => ({ ...t, isOfflineCached: false }))
+    );
+  };
+
+  // Request new server download
+  const handleRequestDownload = (url: string, format: AudioFormat, bitrate: BitrateOption) => {
     const job = createDownloadJob(url, format, bitrate);
     setActiveJobs((prev) => [job, ...prev]);
   };
 
-  // Import custom local audio file
-  const handleImportCustomAudio = (file: File) => {
-    const url = URL.createObjectURL(file);
-    const cleanName = file.name.replace(/\.[^/.]+$/, '');
-    const newTrack: Track = {
-      id: `local-${Date.now()}`,
-      title: cleanName,
-      artist: 'Local Import',
-      album: 'Imported Media',
-      releaseYear: new Date().getFullYear().toString(),
-      trackNumber: 1,
-      genre: 'Local Audio',
-      duration: 180,
-      coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=600&auto=format&fit=crop&q=80',
-      source: 'local',
-      format: (file.name.split('.').pop() as any) || 'mp3',
-      bitrate: '320k',
-      fileSizeMb: parseFloat((file.size / (1024 * 1024)).toFixed(1)),
-      downloadedAt: Date.now(),
-      customAudioUrl: url,
-      lyrics: [
-        { time: 0, text: `[Playing: ${file.name}]` },
-        { time: 10, text: 'Custom local audio file decoded in Downtify iOS' },
-        { time: 30, text: 'Metadata and playback managed in browser storage' },
-      ],
-    };
-
-    setTracks((prev) => [newTrack, ...prev]);
-    handlePlayTrack(newTrack);
-
-    try {
-      confetti({
-        particleCount: 40,
-        spread: 60,
-        origin: { y: 0.7 },
-      });
-    } catch {
-      // ignore
-    }
-  };
-
-  // Batch queue from CSV
-  const handleBatchQueueCsv = (csvText: string) => {
-    const lines = csvText.split('\n').map((l) => l.trim()).filter(Boolean);
-    // skip header if present
-    const rows = lines.slice(lines[0]?.toLowerCase().includes('artist') ? 1 : 0);
-
-    const newJobs: DownloadJob[] = [];
-    rows.slice(0, 8).forEach((line, idx) => {
-      const parts = line.split(',');
-      const artist = parts[1]?.trim() || 'Various Artists';
-      const title = parts[2]?.trim() || `Track #${idx + 1}`;
-      const fakeUrl = `https://open.spotify.com/track/csv_${idx}_${encodeURIComponent(title)}`;
-      const job = createDownloadJob(fakeUrl, settings.defaultFormat, settings.defaultBitrate);
-      job.title = title;
-      job.artist = artist;
-      newJobs.push(job);
-    });
-
-    if (newJobs.length > 0) {
-      setActiveJobs((prev) => [...newJobs, ...prev]);
-      setActiveTab('downloader');
-    }
-  };
-
-  // Download Pipeline Engine (Stepper)
+  // Stepper for Server Downloads
   useEffect(() => {
     if (activeJobs.length === 0) return;
 
@@ -253,7 +288,7 @@ export default function App() {
 
           if (nextProgress < 25) {
             nextStatus = 'fetching_embed';
-            nextLabel = 'Scraping Spotify public embed...';
+            nextLabel = 'Scraping public Spotify embed...';
           } else if (nextProgress < 50) {
             nextStatus = 'matching_ytm';
             nextLabel = 'Matching duration via ytmusicapi...';
@@ -268,11 +303,12 @@ export default function App() {
             nextLabel = 'Fetching LRCLIB lyrics & mutagen tagging...';
           } else {
             nextStatus = 'completed';
-            nextLabel = 'Saved to offline library!';
+            nextLabel = 'Saved to server library!';
             const completedTrack = buildCompletedTrack(job);
+            completedTrack.isLiked = false;
+            completedTrack.isOfflineCached = true;
             job.track = completedTrack;
 
-            // Add track to library
             setTracks((currTracks) => {
               if (currTracks.some((t) => t.title.toLowerCase() === completedTrack.title.toLowerCase())) {
                 return currTracks;
@@ -280,11 +316,10 @@ export default function App() {
               return [completedTrack, ...currTracks];
             });
 
-            // Trigger celebration
             try {
               confetti({
-                particleCount: 50,
-                spread: 70,
+                particleCount: 40,
+                spread: 60,
                 origin: { y: 0.6 },
               });
             } catch {
@@ -307,7 +342,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, [activeJobs]);
 
-  // ID3 tag update handler
+  // ID3 Tag Edit
   const handleSaveTrackMetadata = (updatedTrack: Track) => {
     setTracks((prev) => prev.map((t) => (t.id === updatedTrack.id ? updatedTrack : t)));
     if (currentTrack?.id === updatedTrack.id) {
@@ -315,7 +350,7 @@ export default function App() {
     }
   };
 
-  // Delete track handler
+  // Delete Track
   const handleDeleteTrack = (trackId: string) => {
     setTracks((prev) => prev.filter((t) => t.id !== trackId));
     if (currentTrack?.id === trackId) {
@@ -324,13 +359,13 @@ export default function App() {
     }
   };
 
-  // Create playlist
+  // Create Playlist
   const handleCreatePlaylist = (name: string, description: string) => {
     const newPl: Playlist = {
       id: `pl-${Date.now()}`,
       name,
       description,
-      coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600&auto=format&fit=crop&q=80',
+      coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600',
       trackIds: tracks.slice(0, 3).map((t) => t.id),
       monitored: true,
       lastSynced: 'Just now',
@@ -338,16 +373,16 @@ export default function App() {
     setPlaylists((prev) => [newPl, ...prev]);
   };
 
-  // Toggle monitored playlist
+  // Toggle Monitor
   const handleToggleMonitor = (plId: string) => {
     setPlaylists((prev) =>
       prev.map((pl) => (pl.id === plId ? { ...pl, monitored: !pl.monitored } : pl))
     );
   };
 
-  // Reset catalog
+  // Reset Catalog
   const handleResetCatalog = () => {
-    setTracks(INITIAL_TRACKS);
+    setTracks(INITIAL_TRACKS.map((t, idx) => ({ ...t, isLiked: idx % 2 === 0, isOfflineCached: idx === 0 })));
     setPlaylists(INITIAL_PLAYLISTS);
     setCurrentTrack(INITIAL_TRACKS[0]);
     audioEngine.stop();
@@ -369,7 +404,7 @@ export default function App() {
       volume={volume}
       onVolumeChange={handleVolumeChange}
       onOpenPlayer={() => setIsNowPlayingOpen(true)}
-      onOpenDownloads={() => setActiveTab('downloader')}
+      onOpenDownloads={() => setActiveTab('search')}
       mode={settings.deviceFrameMode}
       onToggleMode={() =>
         setSettings((s) => ({
@@ -378,18 +413,37 @@ export default function App() {
         }))
       }
     >
-      {/* Tab Screen Router */}
+      {/* 4-Tab Screen Router */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
-        {activeTab === 'downloader' && (
-          <DownloaderView
+        {activeTab === 'home' && (
+          <HomeView
+            connection={settings.serverConnection}
+            tracks={tracks}
+            playlists={playlists}
             jobs={activeJobs}
-            onStartDownload={handleStartDownload}
-            onImportCustomAudio={handleImportCustomAudio}
-            onBatchQueueCsv={handleBatchQueueCsv}
+            currentTrack={currentTrack}
+            isPlaying={playbackState.isPlaying}
             onPlayTrack={(t) => {
               handlePlayTrack(t);
               setIsNowPlayingOpen(true);
             }}
+            onOpenServerPairing={() => setIsServerPairingOpen(true)}
+            onNavigateToSearch={() => setActiveTab('search')}
+            onToggleLike={handleToggleLike}
+          />
+        )}
+
+        {activeTab === 'search' && (
+          <SearchView
+            tracks={tracks}
+            currentTrack={currentTrack}
+            isPlaying={playbackState.isPlaying}
+            onPlayTrack={(t) => {
+              handlePlayTrack(t);
+              setIsNowPlayingOpen(true);
+            }}
+            onRequestDownload={handleRequestDownload}
+            onToggleLike={handleToggleLike}
           />
         )}
 
@@ -404,6 +458,8 @@ export default function App() {
             onDeleteTrack={handleDeleteTrack}
             onCreatePlaylist={handleCreatePlaylist}
             onToggleMonitorPlaylist={handleToggleMonitor}
+            onToggleLike={handleToggleLike}
+            onToggleCacheOffline={handleToggleCacheOffline}
           />
         )}
 
@@ -413,11 +469,15 @@ export default function App() {
             onUpdateSettings={(newVals) => setSettings((s) => ({ ...s, ...newVals }))}
             tracks={tracks}
             onResetCatalog={handleResetCatalog}
+            onOpenServerPairing={() => setIsServerPairingOpen(true)}
+            onOpenCarPlay={() => setIsCarPlayOpen(true)}
+            onDownloadAllLiked={handleDownloadAllLiked}
+            onClearOfflineCache={handleClearOfflineCache}
           />
         )}
       </div>
 
-      {/* Mini Player Bar (Persistent above TabBar) */}
+      {/* Mini Player Bar */}
       <MiniPlayerBar
         track={currentTrack}
         isPlaying={playbackState.isPlaying}
@@ -427,14 +487,14 @@ export default function App() {
         onNext={handleNextTrack}
       />
 
-      {/* Bottom Tab Bar */}
+      {/* iOS Tab Bar */}
       <TabBar
         activeTab={activeTab}
         onTabChange={(t) => setActiveTab(t)}
         activeDownloadsCount={activeDownloadsCount}
       />
 
-      {/* Fullscreen Now Playing Sheet */}
+      {/* Now Playing Fullscreen Sheet */}
       <NowPlayingSheet
         track={currentTrack}
         isOpen={isNowPlayingOpen}
@@ -448,9 +508,41 @@ export default function App() {
         onPrev={handlePrevTrack}
         queue={tracks}
         onOpenTagEditor={(t) => setEditingTrack(t)}
+        onToggleLike={handleToggleLike}
+        onToggleCacheOffline={handleToggleCacheOffline}
+        onOpenCarPlay={() => setIsCarPlayOpen(true)}
       />
 
-      {/* ID3 Tag Editor Modal */}
+      {/* Apple CarPlay Simulator */}
+      <CarPlaySimulatorModal
+        isOpen={isCarPlayOpen}
+        onClose={() => setIsCarPlayOpen(false)}
+        currentTrack={currentTrack}
+        isPlaying={playbackState.isPlaying}
+        currentTime={playbackState.currentTime}
+        duration={playbackState.duration}
+        tracks={tracks}
+        playlists={playlists}
+        onPlayTrack={handlePlayTrack}
+        onToggleLike={handleToggleLike}
+        onNext={handleNextTrack}
+        onPrev={handlePrevTrack}
+      />
+
+      {/* Server Pairing Modal */}
+      <ServerPairingModal
+        isOpen={isServerPairingOpen}
+        onClose={() => setIsServerPairingOpen(false)}
+        connection={settings.serverConnection}
+        onConnect={(newConn) => {
+          setSettings((s) => ({
+            ...s,
+            serverConnection: { ...s.serverConnection, ...newConn },
+          }));
+        }}
+      />
+
+      {/* ID3 Tag Editor */}
       <ID3EditorModal
         track={editingTrack}
         isOpen={!!editingTrack}

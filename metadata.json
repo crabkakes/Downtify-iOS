@@ -1,6 +1,6 @@
 {
   "name": "Downtify iOS",
-  "description": "Native iOS music downloader and offline player inspired by Downtify. Converts Spotify, YouTube Music, and SoundCloud links into tagged audio with time-synced lyrics, dynamic player, and library manager.",
+  "description": "Native iOS companion client for Downtify (inspired by henriquesebastiao/downtify-android). Connects to your self-hosted Downtify server via QR code or manual login, with Apple CarPlay automotive support, offline caching, high-bitrate streaming, auto-centering time-synced lyrics, and a full native Swift & SwiftUI codebase.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -17,6 +17,9 @@ import {
   Plus,
   Radio,
   FileAudio,
+  Heart,
+  ArrowDownCircle,
+  WifiOff,
 } from 'lucide-react';
 import { Track, Playlist, AudioFormat } from '../types';
 import { audioEngine } from '../utils/audioEngine';
@@ -32,6 +35,8 @@ interface LibraryViewProps {
   onDeleteTrack: (trackId: string) => void;
   onCreatePlaylist: (name: string, description: string) => void;
   onToggleMonitorPlaylist: (playlistId: string) => void;
+  onToggleLike: (trackId: string) => void;
+  onToggleCacheOffline: (trackId: string) => void;
 }
 
 export const LibraryView: React.FC<LibraryViewProps> = ({
@@ -44,8 +49,10 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   onDeleteTrack,
   onCreatePlaylist,
   onToggleMonitorPlaylist,
+  onToggleLike,
+  onToggleCacheOffline,
 }) => {
-  const [activeSegment, setActiveSegment] = useState<'tracks' | 'playlists' | 'albums' | 'storage'>('tracks');
+  const [activeSegment, setActiveSegment] = useState<'all' | 'liked' | 'playlists' | 'offline'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'recent' | 'title' | 'artist' | 'size'>('recent');
   const [selectedTrackMenu, setSelectedTrackMenu] = useState<Track | null>(null);
@@ -53,8 +60,11 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
   const [newPlaylistName, setNewPlaylistName] = useState('');
   const [isExportingZip, setIsExportingZip] = useState(false);
 
-  // Filter & sort tracks
+  // Filter based on segment and search
   const filteredTracks = tracks.filter((t) => {
+    if (activeSegment === 'liked' && !t.isLiked) return false;
+    if (activeSegment === 'offline' && !t.isOfflineCached) return false;
+
     const q = searchQuery.toLowerCase();
     return (
       t.title.toLowerCase().includes(q) ||
@@ -69,35 +79,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     return b.downloadedAt - a.downloadedAt;
   });
 
-  // Calculate storage stats
-  const totalStorageMb = tracks.reduce((acc, t) => acc + t.fileSizeMb, 0);
-  const formatBreakdown: Record<AudioFormat, number> = {
-    mp3: 0,
-    flac: 0,
-    m4a: 0,
-    ogg: 0,
-    opus: 0,
-  };
-  tracks.forEach((t) => {
-    formatBreakdown[t.format] = (formatBreakdown[t.format] || 0) + t.fileSizeMb;
-  });
-
-  // Unique albums
-  const albumMap = new Map<string, { name: string; artist: string; year: string; cover: string; tracks: Track[] }>();
-  tracks.forEach((t) => {
-    const key = `${t.album}-${t.artist}`;
-    if (!albumMap.has(key)) {
-      albumMap.set(key, {
-        name: t.album,
-        artist: t.artist,
-        year: t.releaseYear,
-        cover: t.coverUrl,
-        tracks: [],
-      });
-    }
-    albumMap.get(key)!.tracks.push(t);
-  });
-  const albums = Array.from(albumMap.values());
+  const likedTracks = tracks.filter((t) => t.isLiked);
+  const offlineTracks = tracks.filter((t) => t.isOfflineCached);
 
   const formatDuration = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -105,65 +88,12 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Export full library as ZIP with M3U playlist file
-  const handleExportAllZip = async () => {
-    audioEngine.playHapticClick();
-    setIsExportingZip(true);
-    try {
-      const zip = new JSZip();
-
-      // Create M3U playlist file
-      let m3uContent = '#EXTM3U\n# Downtify Exported Playlist for Plex / Jellyfin / Navidrome\n';
-      tracks.forEach((t) => {
-        m3uContent += `#EXTINF:${Math.round(t.duration)},${t.artist} - ${t.title}\n`;
-        m3uContent += `${t.artist}/${t.album}/${t.trackNumber} - ${t.title}.${t.format}\n`;
-      });
-      zip.file('downtify_library.m3u', m3uContent);
-
-      // Create metadata index JSON
-      zip.file(
-        'downtify_metadata.json',
-        JSON.stringify(
-          {
-            exportedAt: new Date().toISOString(),
-            totalTracks: tracks.length,
-            totalSizeMb: totalStorageMb.toFixed(2),
-            tracks,
-            playlists,
-          },
-          null,
-          2
-        )
-      );
-
-      // Add dummy audio placeholders / tagged descriptors for each song
-      const musicFolder = zip.folder('Music');
-      tracks.forEach((t) => {
-        const info = `Title: ${t.title}\nArtist: ${t.artist}\nAlbum: ${t.album}\nYear: ${t.releaseYear}\nGenre: ${t.genre}\nISRC: ${t.isrc || 'N/A'}\nFormat: ${t.format} (${t.bitrate})\n\n[Synchronized Lyrics / LRCLIB]:\n` +
-          t.lyrics.map(l => `[${Math.floor(l.time / 60)}:${Math.floor(l.time % 60)}] ${l.text}`).join('\n');
-        musicFolder?.file(`${t.artist} - ${t.title}.id3_tagged.txt`, info);
-      });
-
-      const blob = await zip.generateAsync({ type: 'blob' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `downtify_library_${new Date().toISOString().slice(0, 10)}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsExportingZip(false);
-    }
-  };
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       {/* iOS Top Bar */}
-      <div className="px-5 pt-4 pb-2 shrink-0 space-y-3">
+      <div className="px-5 pt-3 pb-2 shrink-0 space-y-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold tracking-tight text-white">Library</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-white">Your Library</h1>
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
@@ -178,20 +108,33 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           </div>
         </div>
 
-        {/* iOS Segmented Control */}
+        {/* Filter Chips / Segmented Control */}
         <div className="flex items-center p-1 bg-neutral-900 border border-neutral-800 rounded-2xl">
           <button
             onClick={() => {
               audioEngine.playHapticClick();
-              setActiveSegment('tracks');
+              setActiveSegment('all');
             }}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-xl transition-all ${
-              activeSegment === 'tracks'
+              activeSegment === 'all'
                 ? 'bg-neutral-800 text-white shadow-sm'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
-            Tracks ({tracks.length})
+            All ({tracks.length})
+          </button>
+          <button
+            onClick={() => {
+              audioEngine.playHapticClick();
+              setActiveSegment('liked');
+            }}
+            className={`flex-1 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+              activeSegment === 'liked'
+                ? 'bg-neutral-800 text-white shadow-sm'
+                : 'text-neutral-400 hover:text-white'
+            }`}
+          >
+            Liked ({likedTracks.length})
           </button>
           <button
             onClick={() => {
@@ -209,78 +152,125 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
           <button
             onClick={() => {
               audioEngine.playHapticClick();
-              setActiveSegment('albums');
+              setActiveSegment('offline');
             }}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-xl transition-all ${
-              activeSegment === 'albums'
-                ? 'bg-neutral-800 text-white shadow-sm'
+              activeSegment === 'offline'
+                ? 'bg-neutral-800 text-emerald-400 shadow-sm'
                 : 'text-neutral-400 hover:text-white'
             }`}
           >
-            Albums
-          </button>
-          <button
-            onClick={() => {
-              audioEngine.playHapticClick();
-              setActiveSegment('storage');
-            }}
-            className={`flex-1 py-1.5 text-xs font-semibold rounded-xl transition-all ${
-              activeSegment === 'storage'
-                ? 'bg-neutral-800 text-white shadow-sm'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            Storage
+            Offline ({offlineTracks.length})
           </button>
         </div>
 
-        {/* Search & Sort Bar (Tracks, Playlists, Albums) */}
-        {activeSegment !== 'storage' && (
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search offline library..."
-                className="w-full pl-9 pr-4 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-
-            {activeSegment === 'tracks' && (
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-2.5 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 focus:outline-none focus:border-emerald-500 cursor-pointer font-medium"
+        {/* Search & Sort Bar */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search library..."
+              className="w-full pl-9 pr-4 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-emerald-500"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300 text-xs"
               >
-                <option value="recent">Recent</option>
-                <option value="title">Title</option>
-                <option value="artist">Artist</option>
-                <option value="size">File Size</option>
-              </select>
+                Clear
+              </button>
             )}
           </div>
-        )}
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="px-2.5 py-2 bg-neutral-900 border border-neutral-800 rounded-xl text-xs text-neutral-300 focus:outline-none focus:border-emerald-500 cursor-pointer font-medium"
+          >
+            <option value="recent">Recent</option>
+            <option value="title">Title</option>
+            <option value="artist">Artist</option>
+            <option value="size">Size</option>
+          </select>
+        </div>
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-28 pt-2">
-        {/* TRACKS LIST */}
-        {activeSegment === 'tracks' && (
+      <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-28 pt-2 space-y-3">
+        {/* Liked Songs Special Banner when in "All" view */}
+        {activeSegment === 'all' && (
+          <div
+            onClick={() => {
+              audioEngine.playHapticClick();
+              if (likedTracks[0]) onPlayTrack(likedTracks[0]);
+            }}
+            className="flex items-center gap-3.5 p-3 rounded-2xl bg-gradient-to-r from-indigo-900/40 via-purple-900/40 to-neutral-900 border border-indigo-500/20 cursor-pointer hover:border-indigo-500/40 transition-all group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 via-purple-600 to-emerald-400 flex items-center justify-center text-white shadow-lg shrink-0">
+              <Heart className="w-6 h-6 fill-white" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-sm font-bold text-white">Liked Songs</h3>
+              <p className="text-xs text-neutral-400">{likedTracks.length} tracks favorited on server</p>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (likedTracks[0]) onPlayTrack(likedTracks[0]);
+              }}
+              className="p-2 rounded-full bg-emerald-500 text-neutral-950 shadow"
+            >
+              <Play className="w-4 h-4 fill-neutral-950 ml-0.5" />
+            </button>
+          </div>
+        )}
+
+        {/* PLAYLISTS VIEW */}
+        {activeSegment === 'playlists' ? (
+          <div className="space-y-3">
+            {playlists.map((pl) => (
+              <div
+                key={pl.id}
+                onClick={() => {
+                  const firstTrack = tracks.find((t) => pl.trackIds.includes(t.id));
+                  if (firstTrack) onPlayTrack(firstTrack);
+                }}
+                className="flex items-center gap-3 p-2.5 bg-neutral-900/60 hover:bg-neutral-900 border border-neutral-800 rounded-2xl cursor-pointer transition-all"
+              >
+                <img src={pl.coverUrl} alt={pl.name} className="w-12 h-12 rounded-xl object-cover shrink-0 shadow" />
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-semibold text-white truncate">{pl.name}</h4>
+                  <p className="text-xs text-neutral-400 truncate">{pl.description}</p>
+                  <p className="text-[10px] font-mono text-neutral-500 mt-0.5">{pl.trackIds.length} tracks</p>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleMonitorPlaylist(pl.id);
+                  }}
+                  className={`p-1.5 rounded-lg text-xs ${
+                    pl.monitored ? 'text-emerald-400 bg-emerald-500/10' : 'text-neutral-500 hover:text-white'
+                  }`}
+                  title={pl.monitored ? 'Server is monitoring this playlist' : 'Watch playlist'}
+                >
+                  <Radio className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* TRACKS LIST */
           <div className="space-y-1">
             {filteredTracks.length === 0 ? (
               <div className="text-center py-12 text-neutral-500">
                 <Music className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No tracks found</p>
+                {activeSegment === 'offline' && (
+                  <p className="text-xs text-neutral-600 mt-1">Tap the arrow icon on any track to cache it for offline listening.</p>
+                )}
               </div>
             ) : (
               filteredTracks.map((track) => {
@@ -332,17 +322,45 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                         <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-neutral-500 font-mono">
                           <span className="uppercase text-neutral-400">{track.format}</span>
                           <span>·</span>
-                          <span>{track.bitrate}</span>
-                          <span>·</span>
                           <span>{track.fileSizeMb} MB</span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 pl-2">
-                      <span className="text-xs font-mono text-neutral-500">
-                        {formatDuration(track.duration)}
-                      </span>
+                    <div className="flex items-center gap-1.5 shrink-0 pl-2">
+                      {/* Offline Cache Download Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          audioEngine.playHapticClick();
+                          onToggleCacheOffline(track.id);
+                        }}
+                        title={track.isOfflineCached ? 'Cached offline on iPhone' : 'Cache for offline listening'}
+                        className="p-1.5 text-neutral-400 hover:text-white"
+                      >
+                        <ArrowDownCircle
+                          className={`w-4 h-4 ${
+                            track.isOfflineCached ? 'text-emerald-400 fill-emerald-500/20' : 'text-neutral-500'
+                          }`}
+                        />
+                      </button>
+
+                      {/* Like Button */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          audioEngine.playHapticClick();
+                          onToggleLike(track.id);
+                        }}
+                        className="p-1.5 text-neutral-400 hover:text-white"
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${
+                            track.isLiked ? 'text-emerald-400 fill-emerald-400' : 'text-neutral-500'
+                          }`}
+                        />
+                      </button>
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -360,177 +378,9 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
             )}
           </div>
         )}
-
-        {/* PLAYLISTS TAB */}
-        {activeSegment === 'playlists' && (
-          <div className="space-y-4">
-            <div className="p-3 bg-neutral-900/60 border border-neutral-800 rounded-2xl flex items-center justify-between text-xs text-neutral-400">
-              <div className="flex items-center gap-2">
-                <Radio className="w-4 h-4 text-emerald-400 animate-pulse" />
-                <span>Playlist Monitoring: auto-downloads new tracks from embed</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {playlists.map((pl) => (
-                <div
-                  key={pl.id}
-                  className="p-3.5 rounded-2xl bg-neutral-900/60 border border-neutral-800 space-y-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={pl.coverUrl}
-                      alt={pl.name}
-                      className="w-14 h-14 rounded-xl object-cover shrink-0 shadow"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <h4 className="text-sm font-semibold text-white truncate">{pl.name}</h4>
-                      <p className="text-xs text-neutral-400 line-clamp-1">{pl.description}</p>
-                      <p className="text-[11px] font-mono text-neutral-500 mt-1">
-                        {pl.trackIds.length} tracks offline
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-neutral-800/80 text-xs">
-                    <button
-                      onClick={() => onToggleMonitorPlaylist(pl.id)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors ${
-                        pl.monitored
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : 'bg-neutral-800 text-neutral-400'
-                      }`}
-                    >
-                      <Radio className="w-3 h-3" />
-                      {pl.monitored ? 'Watching' : 'Watch Playlist'}
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        const firstTrack = tracks.find((t) => pl.trackIds.includes(t.id));
-                        if (firstTrack) onPlayTrack(firstTrack);
-                      }}
-                      className="flex items-center gap-1 text-emerald-400 hover:text-emerald-300 font-semibold"
-                    >
-                      <Play className="w-3.5 h-3.5 fill-emerald-400" />
-                      Play
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ALBUMS TAB */}
-        {activeSegment === 'albums' && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {albums.map((alb, idx) => (
-              <div
-                key={idx}
-                onClick={() => {
-                  if (alb.tracks[0]) onPlayTrack(alb.tracks[0]);
-                }}
-                className="p-3 bg-neutral-900/60 hover:bg-neutral-900 border border-neutral-800 rounded-2xl cursor-pointer transition-all group"
-              >
-                <div className="w-full aspect-square rounded-xl overflow-hidden mb-2 relative">
-                  <img src={alb.cover} alt={alb.name} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Play className="w-7 h-7 text-white fill-white" />
-                  </div>
-                </div>
-                <p className="text-sm font-semibold text-white truncate">{alb.name}</p>
-                <p className="text-xs text-neutral-400 truncate">{alb.artist}</p>
-                <p className="text-[10px] font-mono text-neutral-500 mt-1">
-                  {alb.tracks.length} tracks · {alb.year}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* STORAGE & EXPORT TAB */}
-        {activeSegment === 'storage' && (
-          <div className="space-y-4">
-            <div className="p-5 bg-neutral-900/80 border border-neutral-800 rounded-3xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-mono uppercase text-neutral-400">Total Library Size</span>
-                  <h3 className="text-3xl font-bold text-white mt-0.5">{totalStorageMb.toFixed(1)} MB</h3>
-                </div>
-                <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl">
-                  <HardDrive className="w-6 h-6" />
-                </div>
-              </div>
-
-              {/* Format progress bars */}
-              <div className="space-y-2 pt-2 border-t border-neutral-800">
-                <div className="flex items-center justify-between text-xs text-neutral-400">
-                  <span>Codec Distribution</span>
-                  <span>{tracks.length} local files</span>
-                </div>
-                <div className="h-3 w-full bg-neutral-950 rounded-full overflow-hidden flex">
-                  <div
-                    className="h-full bg-emerald-500"
-                    style={{ width: `${(formatBreakdown.flac / (totalStorageMb || 1)) * 100}%` }}
-                    title="FLAC"
-                  />
-                  <div
-                    className="h-full bg-indigo-500"
-                    style={{ width: `${(formatBreakdown.mp3 / (totalStorageMb || 1)) * 100}%` }}
-                    title="MP3"
-                  />
-                  <div
-                    className="h-full bg-amber-500"
-                    style={{ width: `${(formatBreakdown.m4a / (totalStorageMb || 1)) * 100}%` }}
-                    title="M4A"
-                  />
-                  <div
-                    className="h-full bg-teal-500"
-                    style={{ width: `${(formatBreakdown.opus / (totalStorageMb || 1)) * 100}%` }}
-                    title="OPUS"
-                  />
-                </div>
-
-                <div className="flex flex-wrap items-center gap-3 text-[11px] pt-1">
-                  <span className="flex items-center gap-1.5 text-neutral-300">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    FLAC ({formatBreakdown.flac.toFixed(1)} MB)
-                  </span>
-                  <span className="flex items-center gap-1.5 text-neutral-300">
-                    <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                    MP3 ({formatBreakdown.mp3.toFixed(1)} MB)
-                  </span>
-                  <span className="flex items-center gap-1.5 text-neutral-300">
-                    <span className="w-2 h-2 rounded-full bg-amber-500" />
-                    M4A ({formatBreakdown.m4a.toFixed(1)} MB)
-                  </span>
-                  <span className="flex items-center gap-1.5 text-neutral-300">
-                    <span className="w-2 h-2 rounded-full bg-teal-500" />
-                    OPUS ({formatBreakdown.opus.toFixed(1)} MB)
-                  </span>
-                </div>
-              </div>
-
-              {/* Export Library action */}
-              <div className="pt-3 border-t border-neutral-800 flex flex-col gap-2">
-                <button
-                  onClick={handleExportAllZip}
-                  disabled={isExportingZip}
-                  className="w-full py-3 px-4 rounded-2xl bg-neutral-800 hover:bg-neutral-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
-                >
-                  <FolderArchive className="w-4 h-4 text-emerald-400" />
-                  <span>
-                    {isExportingZip ? 'Packaging Library...' : 'Export All as ZIP (with M3U & ID3)'}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Track Action Menu Modal */}
+      {/* Track Menu Sheet */}
       <AnimatePresence>
         {selectedTrackMenu && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm">
@@ -551,9 +401,6 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-white truncate">{selectedTrackMenu.title}</p>
                   <p className="text-xs text-neutral-400 truncate">{selectedTrackMenu.artist}</p>
-                  <p className="text-[10px] font-mono text-emerald-400 uppercase mt-0.5">
-                    {selectedTrackMenu.format} · {selectedTrackMenu.bitrate}
-                  </p>
                 </div>
               </div>
 
@@ -563,7 +410,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     onPlayTrack(selectedTrackMenu);
                     setSelectedTrackMenu(null);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-800 text-xs font-medium text-white transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-800 text-xs font-medium text-white"
                 >
                   <Play className="w-4 h-4 text-emerald-400" />
                   <span>Play Track</span>
@@ -571,26 +418,24 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
 
                 <button
                   onClick={() => {
-                    onOpenTagEditor(selectedTrackMenu);
+                    onToggleCacheOffline(selectedTrackMenu.id);
                     setSelectedTrackMenu(null);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-800 text-xs font-medium text-white transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-800 text-xs font-medium text-white"
                 >
-                  <Tag className="w-4 h-4 text-indigo-400" />
-                  <span>Edit ID3v2 Tags & Cover (mutagen)</span>
+                  <ArrowDownCircle className="w-4 h-4 text-emerald-400" />
+                  <span>{selectedTrackMenu.isOfflineCached ? 'Remove from Offline Storage' : 'Download to Device'}</span>
                 </button>
 
                 <button
                   onClick={() => {
-                    if (selectedTrackMenu.sourceUrl) {
-                      navigator.clipboard?.writeText(selectedTrackMenu.sourceUrl);
-                    }
+                    onOpenTagEditor(selectedTrackMenu);
                     setSelectedTrackMenu(null);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-800 text-xs font-medium text-white transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-neutral-800 text-xs font-medium text-white"
                 >
-                  <Share2 className="w-4 h-4 text-neutral-400" />
-                  <span>Copy Source URL</span>
+                  <Tag className="w-4 h-4 text-indigo-400" />
+                  <span>Inspect ID3v2 Tags & Cover</span>
                 </button>
 
                 <button
@@ -598,18 +443,18 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
                     onDeleteTrack(selectedTrackMenu.id);
                     setSelectedTrackMenu(null);
                   }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-xs font-medium text-red-400 transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-500/10 text-xs font-medium text-red-400"
                 >
                   <Trash2 className="w-4 h-4 text-red-400" />
-                  <span>Remove from Offline Library</span>
+                  <span>Delete from Downtify Server</span>
                 </button>
               </div>
 
               <button
                 onClick={() => setSelectedTrackMenu(null)}
-                className="w-full py-2.5 bg-neutral-800 hover:bg-neutral-700 text-neutral-300 rounded-xl text-xs font-medium transition-colors"
+                className="w-full py-2.5 bg-neutral-800 text-neutral-300 rounded-xl text-xs font-medium"
               >
-                Done
+                Cancel
               </button>
             </motion.div>
           </div>
@@ -626,7 +471,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full max-w-sm bg-neutral-900 border border-neutral-800 rounded-3xl p-5 shadow-2xl space-y-4"
             >
-              <h3 className="text-base font-semibold text-white">New Monitored Playlist</h3>
+              <h3 className="text-base font-semibold text-white">New Playlist on Server</h3>
               <input
                 type="text"
                 placeholder="Playlist name..."
