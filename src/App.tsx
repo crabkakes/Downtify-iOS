@@ -16,6 +16,7 @@ import { NowPlayingSheet } from './components/NowPlayingSheet';
 import { ID3EditorModal } from './components/ID3EditorModal';
 import { ServerPairingModal } from './components/ServerPairingModal';
 import { CarPlaySimulatorModal } from './components/CarPlaySimulatorModal';
+import { ScreenshotsShowcaseModal } from './components/ScreenshotsShowcaseModal';
 
 import {
   Track,
@@ -109,6 +110,7 @@ export default function App() {
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
   const [isServerPairingOpen, setIsServerPairingOpen] = useState(false);
   const [isCarPlayOpen, setIsCarPlayOpen] = useState(false);
+  const [isScreenshotsOpen, setIsScreenshotsOpen] = useState(false);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
 
   // Active Server Downloads
@@ -471,6 +473,7 @@ export default function App() {
             onResetCatalog={handleResetCatalog}
             onOpenServerPairing={() => setIsServerPairingOpen(true)}
             onOpenCarPlay={() => setIsCarPlayOpen(true)}
+            onOpenScreenshots={() => setIsScreenshotsOpen(true)}
             onDownloadAllLiked={handleDownloadAllLiked}
             onClearOfflineCache={handleClearOfflineCache}
           />
@@ -527,6 +530,12 @@ export default function App() {
         onToggleLike={handleToggleLike}
         onNext={handleNextTrack}
         onPrev={handlePrevTrack}
+      />
+
+      {/* App Screenshots Showcase */}
+      <ScreenshotsShowcaseModal
+        isOpen={isScreenshotsOpen}
+        onClose={() => setIsScreenshotsOpen(false)}
       />
 
       {/* Server Pairing Modal */}

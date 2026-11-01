@@ -18,6 +18,22 @@ This application is engineered as a **100% native iOS application** (not a web w
 
 ---
 
+## 📸 Screenshots & Showcase
+
+| iOS 18 Now Playing & Lyrics | Server Companion Home |
+|:---:|:---:|
+| <img src="public/screenshots/player.jpg" alt="Downtify iOS Player" width="340"/> | <img src="public/screenshots/home.jpg" alt="Downtify iOS Home" width="340"/> |
+| *Auto-centering synchronized lyrics & FLAC stream* | *Server pairing status, quick mixes & active tasks* |
+
+### Apple CarPlay In-Vehicle Dashboard
+<p align="center">
+  <img src="public/screenshots/carplay.jpg" alt="Apple CarPlay Dashboard" width="720"/>
+  <br/>
+  <em>Apple CarPlay CPTemplateApplicationScene automotive interface with driving-safe controls</em>
+</p>
+
+---
+
 ## ✨ Features & Capabilities
 
 ### 1. Server Pairing & Authentication

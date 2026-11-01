@@ -20,6 +20,7 @@ import {
   QrCode,
   Trash2,
   ArrowDownCircle,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { DowntifySettings, AudioFormat, BitrateOption, StreamingQuality, Track } from '../types';
 import { audioEngine } from '../utils/audioEngine';
@@ -31,6 +32,7 @@ interface SettingsViewProps {
   onResetCatalog: () => void;
   onOpenServerPairing: () => void;
   onOpenCarPlay: () => void;
+  onOpenScreenshots: () => void;
   onDownloadAllLiked: () => void;
   onClearOfflineCache: () => void;
 }
@@ -42,6 +44,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onResetCatalog,
   onOpenServerPairing,
   onOpenCarPlay,
+  onOpenScreenshots,
   onDownloadAllLiked,
   onClearOfflineCache,
 }) => {
@@ -255,6 +258,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         >
           <Car className="w-4 h-4" />
           <span>Launch CarPlay Vehicle Simulator</span>
+        </button>
+      </div>
+
+      {/* App Screenshots Showcase Card */}
+      <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-5 space-y-3.5 shadow-xl">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-mono uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1.5">
+            <ImageIcon className="w-3.5 h-3.5" />
+            App Screenshots Showcase
+          </h3>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+            3 High-Res Previews
+          </span>
+        </div>
+
+        <p className="text-xs text-neutral-400 leading-relaxed">
+          View full-fidelity screenshots of the <strong className="text-neutral-200">iOS 18 Now Playing Player</strong>, the <strong className="text-neutral-200">Server Companion Home</strong>, and the <strong className="text-neutral-200">Apple CarPlay Dashboard</strong>.
+        </p>
+
+        <div className="grid grid-cols-3 gap-2">
+          <div
+            onClick={() => {
+              audioEngine.playHapticClick();
+              onOpenScreenshots();
+            }}
+            className="aspect-[9/16] rounded-xl overflow-hidden border border-neutral-800 cursor-pointer hover:border-emerald-500 transition-all group"
+          >
+            <img src="/screenshots/player.jpg" alt="Player Screenshot" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+          </div>
+          <div
+            onClick={() => {
+              audioEngine.playHapticClick();
+              onOpenScreenshots();
+            }}
+            className="aspect-[9/16] rounded-xl overflow-hidden border border-neutral-800 cursor-pointer hover:border-emerald-500 transition-all group"
+          >
+            <img src="/screenshots/home.jpg" alt="Home Screenshot" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+          </div>
+          <div
+            onClick={() => {
+              audioEngine.playHapticClick();
+              onOpenScreenshots();
+            }}
+            className="aspect-[9/16] rounded-xl overflow-hidden border border-neutral-800 cursor-pointer hover:border-emerald-500 transition-all group"
+          >
+            <img src="/screenshots/carplay.jpg" alt="CarPlay Screenshot" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+          </div>
+        </div>
+
+        <button
+          onClick={() => {
+            audioEngine.playHapticClick();
+            onOpenScreenshots();
+          }}
+          className="w-full py-2 px-3 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-center gap-1.5 transition-all"
+        >
+          <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
+          <span>Open Fullscreen Screenshot Gallery</span>
         </button>
       </div>
 
