@@ -60,7 +60,7 @@ export default function App() {
       serverConnection: {
         status: 'connected',
         serverUrl: 'https://downtify.local:8000',
-        username: 'enrico',
+        username: 'alex',
         token: 'dt_auth_token_98234',
         pingMs: 18,
         serverVersion: 'v2.8.4',

@@ -22,12 +22,35 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- iOS 18 Background Audio & Offline Download Modes -->
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>audio</string>
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
+
+	<!-- iOS 17 & iOS 18 Dynamic Island / Live Activities -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
+	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
+	<true/>
+
+	<!-- Camera permission for Downtify Settings -> Apps QR Code Pairing -->
+	<key>NSCameraUsageDescription</key>
+	<string>Downtify uses your camera to scan the pairing QR code displayed in your Downtify server settings.</string>
+
+	<!-- Local Network permission for LAN streaming from home server (e.g. downtify.local:8000) -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Downtify discovers and streams high-fidelity FLAC audio from your self-hosted Downtify instance on your local Wi-Fi network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_http._tcp</string>
+		<string>_downtify._tcp</string>
+	</array>
+
+	<!-- Apple CarPlay Automotive Scene Configuration -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -45,17 +68,20 @@
 			</array>
 		</dict>
 	</dict>
+
+	<!-- iOS Sandbox Files Access for Offline Stored Music -->
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
-	<key>NSAppleMusicUsageDescription</key>
-	<string>Downtify needs access to your media library to export tagged offline audio files.</string>
+
+	<!-- Network Security for Self-Hosted HTTP / Self-Signed HTTPS LAN Instances -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>

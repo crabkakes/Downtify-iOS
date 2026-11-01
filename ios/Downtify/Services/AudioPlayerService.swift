@@ -1,6 +1,6 @@
 //
 //  AudioPlayerService.swift
-//  Downtify iOS
+//  Downtify iOS - Native Audio Engine (iOS 18 & Swift 6 Compatible)
 //
 
 import Foundation
@@ -8,6 +8,7 @@ import AVFoundation
 import MediaPlayer
 import Combine
 
+@MainActor
 public class AudioPlayerService: NSObject, ObservableObject {
     public static let shared = AudioPlayerService()
 
@@ -19,40 +20,86 @@ public class AudioPlayerService: NSObject, ObservableObject {
     @Published public var queue: [Track] = []
     @Published public var isShuffle: Bool = false
     @Published public var repeatMode: RepeatMode = .off
+    @Published public var isOfflineTrack: Bool = false
 
     public enum RepeatMode {
         case off, all, one
     }
 
     private var player: AVPlayer?
-    private var timeObserver: Any?
+    private var timeObserverToken: Any?
+    private var cancellables = Set<AnyCancellable>()
 
     override init() {
         super.init()
+        setupAudioSessionObservers()
         setupRemoteCommands()
     }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+        if let token = timeObserverToken {
+            player?.removeTimeObserver(token)
+        }
+    }
+
+    // MARK: - Playback Controls
 
     public func playTrack(_ track: Track) {
         self.currentTrack = track
         self.duration = track.duration
         self.currentTime = 0.0
         self.isPlaying = true
+        self.isOfflineTrack = track.isCached
 
+        // If local offline file exists, play from Documents/Music; otherwise stream from server
+        if track.isCached, let localURL = DownloadManager.shared.localFileURL(for: track.id) {
+            let playerItem = AVPlayerItem(url: localURL)
+            self.player = AVPlayer(playerItem: playerItem)
+        } else {
+            // Stream over HTTP/HTTPS from Downtify Server
+            let streamURLString = "\(DowntifyAPIService.shared.connectionInfo.serverURL)/api/stream/\(track.id)"
+            if let streamURL = URL(string: streamURLString) {
+                let playerItem = AVPlayerItem(url: streamURL)
+                self.player = AVPlayer(playerItem: playerItem)
+            }
+        }
+
+        player?.play()
         updateNowPlayingInfo()
     }
 
     public func togglePlayPause() {
-        self.isPlaying.toggle()
+        if isPlaying {
+            pause()
+        } else {
+            play()
+        }
+    }
+
+    public func play() {
+        self.isPlaying = true
+        player?.play()
+        updateNowPlayingInfo()
+    }
+
+    public func pause() {
+        self.isPlaying = false
+        player?.pause()
         updateNowPlayingInfo()
     }
 
     public func seek(to time: Double) {
         self.currentTime = time
+        let targetTime = CMTime(seconds: time, preferredTimescale: 600)
+        player?.seek(to: targetTime)
         updateNowPlayingInfo()
     }
 
     public func nextTrack() {
+        guard !queue.isEmpty else { return }
         guard let current = currentTrack, let idx = queue.firstIndex(where: { $0.id == current.id }) else {
+            if let first = queue.first { playTrack(first) }
             return
         }
         let nextIdx = (idx + 1) % queue.count
@@ -60,34 +107,152 @@ public class AudioPlayerService: NSObject, ObservableObject {
     }
 
     public func prevTrack() {
+        guard !queue.isEmpty else { return }
         guard let current = currentTrack, let idx = queue.firstIndex(where: { $0.id == current.id }) else {
+            if let last = queue.last { playTrack(last) }
             return
         }
         let prevIdx = (idx - 1 + queue.count) % queue.count
         playTrack(queue[prevIdx])
     }
 
+    // MARK: - Modern iOS Audio Session Interruption & Route Change Observers
+
+    private func setupAudioSessionObservers() {
+        let center = NotificationCenter.default
+
+        // Handle Audio Interruptions (e.g., incoming phone call, FaceTime, Siri, GPS announcements)
+        center.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let userInfo = notification.userInfo,
+                  let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+            switch type {
+            case .began:
+                self.pause()
+            case .ended:
+                if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                    let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                    if options.contains(.shouldResume) {
+                        self.play()
+                    }
+                }
+            @unknown default:
+                break
+            }
+        }
+
+        // Handle Route Changes (e.g. AirPods battery dies, headphones unplugged -> pause immediately)
+        center.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            guard let self = self,
+                  let userInfo = notification.userInfo,
+                  let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                  let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
+
+            switch reason {
+            case .oldDeviceUnavailable:
+                // Headphones unplugged or AirPods disconnected
+                self.pause()
+            case .newDeviceAvailable:
+                // Connected to CarPlay or Bluetooth car audio
+                print("Downtify: New audio output device detected.")
+            default:
+                break
+            }
+        }
+    }
+
+    // MARK: - Modern MPRemoteCommandCenter (iOS 18, CarPlay, Apple Watch & Lock Screen)
+
     private func setupRemoteCommands() {
-        let center = MPRemoteCommandCenter.shared()
-        center.playCommand.addTarget { [weak self] _ in
-            self?.isPlaying = true
+        let commandCenter = MPRemoteCommandCenter.shared()
+
+        // Play Command
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.playCommand.addTarget { [weak self] _ in
+            self?.play()
             return .success
         }
-        center.pauseCommand.addTarget { [weak self] _ in
-            self?.isPlaying = false
+
+        // Pause Command
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
+            self?.pause()
             return .success
         }
-        center.nextTrackCommand.addTarget { [weak self] _ in
+
+        // Toggle Play/Pause
+        commandCenter.togglePlayPauseCommand.isEnabled = true
+        commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+            self?.togglePlayPause()
+            return .success
+        }
+
+        // Next Track Command
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
             self?.nextTrack()
             return .success
         }
-        center.previousTrackCommand.addTarget { [weak self] _ in
+
+        // Previous Track Command
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
             self?.prevTrack()
+            return .success
+        }
+
+        // Lock Screen & CarPlay Scrubbing (changePlaybackPosition)
+        commandCenter.changePlaybackPositionCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            guard let self = self, let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
+                return .commandFailed
+            }
+            self.seek(to: positionEvent.positionTime)
+            return .success
+        }
+
+        // Skip 15s forward & backward
+        commandCenter.skipForwardCommand.preferredIntervals = [15]
+        commandCenter.skipForwardCommand.isEnabled = true
+        commandCenter.skipForwardCommand.addTarget { [weak self] _ in
+            guard let self = self else { return .commandFailed }
+            self.seek(to: min(self.currentTime + 15, self.duration))
+            return .success
+        }
+
+        commandCenter.skipBackwardCommand.preferredIntervals = [15]
+        commandCenter.skipBackwardCommand.isEnabled = true
+        commandCenter.skipBackwardCommand.addTarget { [weak self] _ in
+            guard let self = self else { return .commandFailed }
+            self.seek(to: max(self.currentTime - 15, 0))
+            return .success
+        }
+
+        // Like / Favorite command
+        commandCenter.likeCommand.isEnabled = true
+        commandCenter.likeCommand.localizedTitle = "Favorite on Downtify"
+        commandCenter.likeCommand.addTarget { [weak self] _ in
+            guard let self = self, let track = self.currentTrack else { return .commandFailed }
+            Task {
+                await DowntifyAPIService.shared.toggleFavorite(trackId: track.id)
+            }
             return .success
         }
     }
 
-    private func updateNowPlayingInfo() {
+    // MARK: - Now Playing Info
+
+    public func updateNowPlayingInfo() {
         guard let track = currentTrack else {
             MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
             return
@@ -99,8 +264,10 @@ public class AudioPlayerService: NSObject, ObservableObject {
             MPMediaItemPropertyAlbumTitle: track.album,
             MPMediaItemPropertyPlaybackDuration: track.duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: currentTime,
-            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0
+            MPNowPlayingInfoPropertyPlaybackRate: isPlaying ? 1.0 : 0.0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: 1.0
         ]
+
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
 }

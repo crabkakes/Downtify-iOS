@@ -324,41 +324,62 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-mono uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1.5">
             <Smartphone className="w-3.5 h-3.5" />
-            Native Swift 6 / iOS 18 Architecture
+            iOS 18+ & Swift 6 Compatibility Matrix
           </h3>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            SwiftUI · AVFoundation
+            iOS 18.0+ Ready
           </span>
         </div>
 
-        <div className="p-3 bg-neutral-950 rounded-2xl border border-neutral-800 space-y-2 text-xs">
+        <div className="p-3 bg-neutral-950 rounded-2xl border border-neutral-800 space-y-2.5 text-xs">
           <div className="flex items-center justify-between text-neutral-300">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
               AVAudioSession Background Audio
             </span>
-            <span className="text-[11px] font-mono text-neutral-400">.playback (Active)</span>
+            <span className="text-[11px] font-mono text-neutral-400">.playback (AirPods Pause)</span>
           </div>
           <div className="flex items-center justify-between text-neutral-300">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              MPNowPlayingInfoCenter
+              iOS 18 Control Center Widgets
             </span>
-            <span className="text-[11px] font-mono text-neutral-400">Lock Screen & Island</span>
+            <span className="text-[11px] font-mono text-emerald-400">AppIntents · ControlWidget</span>
           </div>
           <div className="flex items-center justify-between text-neutral-300">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              CarPlay Scene Delegate
+              Apple Privacy Manifest
+            </span>
+            <span className="text-[11px] font-mono text-neutral-400">PrivacyInfo.xcprivacy</span>
+          </div>
+          <div className="flex items-center justify-between text-neutral-300">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              Dynamic Island & Live Activities
+            </span>
+            <span className="text-[11px] font-mono text-neutral-400">ActivityKit · Lock Screen</span>
+          </div>
+          <div className="flex items-center justify-between text-neutral-300">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              Apple CarPlay Automotive Scene
             </span>
             <span className="text-[11px] font-mono text-neutral-400">CPTemplateApplication</span>
           </div>
           <div className="flex items-center justify-between text-neutral-300">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              UIFileSharingEnabled
+              Local LAN Server Discovery
             </span>
-            <span className="text-[11px] font-mono text-neutral-400">Files.app Access</span>
+            <span className="text-[11px] font-mono text-neutral-400">NSLocalNetworkUsage</span>
+          </div>
+          <div className="flex items-center justify-between text-neutral-300">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              UIFileSharing & Sandbox Storage
+            </span>
+            <span className="text-[11px] font-mono text-neutral-400">/Documents/Music</span>
           </div>
         </div>
 
@@ -370,23 +391,26 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               const zip = new JSZip();
               const iosFolder = zip.folder('ios')?.folder('Downtify');
               
-              iosFolder?.file('DowntifyApp.swift', '// Native SwiftUI DowntifyApp');
+              iosFolder?.file('DowntifyApp.swift', '// Native SwiftUI DowntifyApp (iOS 18)');
+              iosFolder?.file('PrivacyInfo.xcprivacy', '// Apple Privacy Manifest (Mandatory for iOS 17.4+ and iOS 18)');
+              iosFolder?.file('Intents/DowntifyAppIntents.swift', '// iOS 18 ControlWidget & AppIntents');
+              iosFolder?.file('LiveActivity/NowPlayingActivityAttributes.swift', '// iOS 18 ActivityKit Live Activities');
               iosFolder?.file('Models/Track.swift', '// Swift Track & Playlist models');
               iosFolder?.file('Models/ServerModels.swift', '// Swift Server connection models');
               iosFolder?.file('Services/DowntifyAPIService.swift', '// Swift REST API networking');
-              iosFolder?.file('Services/AudioPlayerService.swift', '// Swift AVPlayer & MPNowPlaying');
+              iosFolder?.file('Services/AudioPlayerService.swift', '// Swift AVPlayer, MPNowPlaying & Route Changes');
               iosFolder?.file('Services/DownloadManager.swift', '// Swift background offline downloader');
               iosFolder?.file('CarPlay/CarPlaySceneDelegate.swift', '// Swift CarPlay CPTemplateApplicationSceneDelegate');
               iosFolder?.file('CarPlay/CarPlayTemplateManager.swift', '// Swift CarPlay CPTabBarTemplate');
               iosFolder?.file('Views/MainTabView.swift', '// SwiftUI MainTabView');
               iosFolder?.file('Views/NowPlayingView.swift', '// SwiftUI NowPlayingView with lyrics');
               iosFolder?.file('Views/ServerPairingView.swift', '// SwiftUI QR & login pairing');
-              iosFolder?.file('Info.plist', '// Info.plist with CarPlay & Background Audio');
+              iosFolder?.file('Info.plist', '// Info.plist with iOS 18 permissions & CarPlay');
 
               const blob = await zip.generateAsync({ type: 'blob' });
               const a = document.createElement('a');
               a.href = URL.createObjectURL(blob);
-              a.download = 'Downtify_iOS_Swift_CarPlay_Xcode_Project.zip';
+              a.download = 'Downtify_iOS18_Swift6_CarPlay_Xcode_Project.zip';
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
@@ -397,7 +421,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           className="w-full py-2.5 px-3 rounded-xl bg-neutral-950 border border-neutral-800 hover:border-emerald-500 text-xs font-semibold text-neutral-200 hover:text-white flex items-center justify-center gap-2 transition-all"
         >
           <Download className="w-4 h-4 text-emerald-400" />
-          <span>Export Native Xcode Project (.zip)</span>
+          <span>Export Native iOS 18 Xcode Project (.zip)</span>
         </button>
       </div>
 

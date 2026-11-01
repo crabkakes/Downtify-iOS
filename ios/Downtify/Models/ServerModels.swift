@@ -18,7 +18,7 @@ public struct ServerConnectionInfo: Codable {
 
     public init(
         serverUrl: String = "https://downtify.local:8000",
-        username: String = "enrico",
+        username: String = "alex",
         token: String? = "dt_auth_token_98234",
         serverVersion: String = "v2.8.4",
         pingMs: Int = 18,

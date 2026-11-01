@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+   PrivacyInfo.xcprivacy
+   Downtify iOS - Apple Privacy Manifest (Mandatory for iOS 17.4+ and iOS 18)
+-->
+<plist version="1.0">
+<dict>
+	<!-- Downtify is a self-hosted client with ZERO telemetry, tracking, or ads -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	
+	<!-- No tracking domains contacted -->
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	
+	<!-- No user data collected by third parties -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	
+	<!-- Declared Required Reason APIs used in iOS 18 -->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!-- 1. UserDefaults for saving server URL, streaming bitrate, and user preferences -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPITypeUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+		
+		<!-- 2. File Timestamp APIs for managing offline music cache expiration & sorting -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPITypeFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+		
+		<!-- 3. Disk Space APIs to check remaining storage before downloading offline albums -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPITypeDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>E174.1</string>
+			</array>
+		</dict>
+		
+		<!-- 4. System Boot Time APIs for measuring network streaming latency & audio sync -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPITypeSystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

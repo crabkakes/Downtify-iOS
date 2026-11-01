@@ -9,7 +9,7 @@ struct ServerPairingView: View {
     @EnvironmentObject var apiService: DowntifyAPIService
 
     @State private var serverUrl = "https://downtify.local:8000"
-    @State private var username = "enrico"
+    @State private var username = "alex"
     @State private var token = ""
     @State private var selectedTab = 0
     @State private var isSimulatingQRScan = false
@@ -64,7 +64,7 @@ struct ServerPairingView: View {
 
                         Button {
                             // Instant simulated pairing with Downtify QR payload
-                            let payload = "{\"server\":\"https://downtify.local:8000\",\"user\":\"enrico\",\"token\":\"dt_sec_token_982\"}"
+                            let payload = "{\"server\":\"https://downtify.local:8000\",\"user\":\"alex\",\"token\":\"dt_sec_token_982\"}"
                             apiService.pairWithQRCode(payload)
                         } label: {
                             Text("Simulate QR Scan (Settings → Apps)")

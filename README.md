@@ -63,20 +63,33 @@ This application is engineered as a **100% native iOS application** (not a web w
 - **Dynamic Island**: Displays album artwork and animated frequency bars when playing, or real-time download percentages when caching.
 - **Taptic Engine**: Haptic feedback clicks powered by `UIImpactFeedbackGenerator`.
 
+### 5. iOS 18 & Latest iOS Compatibility
+- **iOS 18 Control Center Widgets**: Built with `WidgetKit` & `AppIntents` (`ControlWidgetButton`), letting users toggle playback or skip tracks right from the iOS 18 customizable Control Center or the Action Button.
+- **Apple Privacy Manifest (`PrivacyInfo.xcprivacy`)**: Full compliance with Apple's mandatory privacy requirements for iOS 17.4+ and iOS 18 App Store submissions. Declares zero tracking, zero third-party telemetry, and explicit reasons for `UserDefaults`, `FileTimestamp`, and `DiskSpace` APIs.
+- **Dynamic Island & Live Activities (`ActivityKit`)**: `DowntifyNowPlayingActivityAttributes` powers Lock Screen and Dynamic Island live updates on iPhone 14 Pro, 15, 15 Pro, 16, and 16 Pro models.
+- **AirPods Route Change & Interruption Handling**: Automatically pauses playback when AirPods disconnect or headphones are unplugged (`.oldDeviceUnavailable`), and smoothly resumes after phone calls with `.shouldResume`.
+- **Local Network Access (`NSLocalNetworkUsageDescription`)**: Fully compliant with iOS Local Network security requirements for streaming lossless audio from home servers (e.g. `downtify.local:8000` or `192.168.x.x`).
+- **Swift 6 Concurrency**: Architecture marked with `@MainActor` and `Sendable` types for zero data race warnings under the Swift 6 compiler.
+
 ---
 
 ## 🏛️ Native iOS Source Structure (`/ios/Downtify/`)
 
 ```
 ios/Downtify/
-├── DowntifyApp.swift                    # SwiftUI @main entry point & AVAudioSession setup
-├── Info.plist                           # Background modes, CarPlay scenes, File sharing
+├── DowntifyApp.swift                    # SwiftUI @main entry point (iOS 18 & Swift 6)
+├── PrivacyInfo.xcprivacy                # Apple Privacy Manifest (Mandatory for iOS 17.4+ / 18)
+├── Info.plist                           # Background modes, CarPlay scenes, LAN permissions
+├── Intents/
+│   └── DowntifyAppIntents.swift         # iOS 18 Control Center widgets & App Intents
+├── LiveActivity/
+│   └── NowPlayingActivityAttributes.swift # ActivityKit Dynamic Island & Live Activities
 ├── Models/
 │   ├── Track.swift                      # Track, LyricLine, and Playlist structs
 │   └── ServerModels.swift               # ServerConnectionInfo, QRAuthPayload, Task models
 ├── Services/
 │   ├── DowntifyAPIService.swift         # URLSession REST client for Downtify server
-│   ├── AudioPlayerService.swift         # AVPlayer, MPNowPlayingInfoCenter & MPRemoteCommands
+│   ├── AudioPlayerService.swift         # AVPlayer, Route change listener & MPRemoteCommands
 │   └── DownloadManager.swift            # URLSession background offline downloader
 ├── CarPlay/
 │   ├── CarPlaySceneDelegate.swift       # CPTemplateApplicationSceneDelegate

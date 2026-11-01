@@ -30,7 +30,7 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'qr' | 'manual'>('qr');
   const [serverUrl, setServerUrl] = useState(connection.serverUrl || 'https://downtify.local:8000');
-  const [username, setUsername] = useState(connection.username || 'enrico');
+  const [username, setUsername] = useState(connection.username || 'alex');
   const [token, setToken] = useState(connection.token || 'dt_auth_token_98234');
   const [isScanning, setIsScanning] = useState(false);
 
@@ -43,7 +43,7 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
       setIsScanning(false);
       onConnect({
         serverUrl: 'https://downtify.home.lan:8000',
-        username: 'enrico',
+        username: 'alex',
         token: 'dt_qr_token_' + Math.random().toString(36).substring(2, 8),
         status: 'connected',
         pingMs: 14,
@@ -214,7 +214,7 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="enrico"
+                  placeholder="alex"
                   className="w-full pl-9 pr-3 py-2 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500 font-mono"
                   required
                 />
