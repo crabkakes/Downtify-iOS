@@ -1,0 +1,6 @@
+{
+  "name": "Downtify iOS",
+  "description": "Native iOS music downloader and offline player inspired by Downtify. Converts Spotify, YouTube Music, and SoundCloud links into tagged audio with time-synced lyrics, dynamic player, and library manager.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
