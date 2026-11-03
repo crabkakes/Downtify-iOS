@@ -21,9 +21,26 @@ public class AudioPlayerService: NSObject, ObservableObject {
     @Published public var isShuffle: Bool = false
     @Published public var repeatMode: RepeatMode = .off
     @Published public var isOfflineTrack: Bool = false
+    @Published public var streamingQuality: StreamingQuality = .original
 
     public enum RepeatMode {
         case off, all, one
+    }
+
+    public enum StreamingQuality: String, CaseIterable, Identifiable {
+        case original = "Lossless (FLAC/Source)"
+        case high320 = "High (320 kbps MP3)"
+        case medium128 = "Data Saver (128 kbps AAC)"
+
+        public var id: String { self.rawValue }
+
+        public var queryParam: String {
+            switch self {
+            case .original: return "quality=original"
+            case .high320: return "quality=320k"
+            case .medium128: return "quality=128k"
+            }
+        }
     }
 
     private var player: AVPlayer?
@@ -50,25 +67,32 @@ public class AudioPlayerService: NSObject, ObservableObject {
         self.duration = track.duration
         self.currentTime = 0.0
         self.isPlaying = true
-        self.isOfflineTrack = track.isCached
+        self.isOfflineTrack = DownloadManager.shared.isDownloaded(trackId: track.id)
 
-        // If local offline file exists, play from Documents/Music; otherwise stream from server
-        if track.isCached, let localURL = DownloadManager.shared.localFileURL(for: track.id) {
+        // Ensure track is in queue
+        if !queue.contains(where: { $0.id == track.id }) {
+            queue.insert(track, at: 0)
+        }
+
+        // If local offline file exists, play from Documents/OfflineMusic; otherwise stream from server
+        if let localURL = DownloadManager.shared.localFileURL(for: track.id) {
             let playerItem = AVPlayerItem(url: localURL)
             self.player = AVPlayer(playerItem: playerItem)
+            self.isOfflineTrack = true
         } else {
-            // Stream over HTTP/HTTPS from Downtify Server (handles Reverse Proxy subpath & custom headers)
-            if let streamURL = DowntifyAPIService.shared.endpointURL("api/stream/\(track.id)") {
-                var headers = DowntifyAPIService.shared.connectionInfo.customHeaders
-                if let token = DowntifyAPIService.shared.connectionInfo.token, !token.isEmpty {
+            // Stream over HTTP/HTTPS from Downtify Server
+            let endpoint = "api/stream/\(track.id)?\(streamingQuality.queryParam)"
+            if let streamURL = DowntifyAPIService.shared.endpointURL(endpoint) {
+                var headers: [String: String] = [:]
+                if let token = KeychainHelper.shared.read(for: DowntifyAPIService.shared.connectionInfo.username), !token.isEmpty {
                     headers["Authorization"] = "Bearer \(token)"
                 }
                 headers["User-Agent"] = "Downtify-iOS-AVPlayer/2.8"
 
-                // AVURLAssetHTTPHeaderFieldsKey allows AVPlayer to stream through authenticated reverse proxies
                 let asset = AVURLAsset(url: streamURL, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
                 let playerItem = AVPlayerItem(asset: asset)
                 self.player = AVPlayer(playerItem: playerItem)
+                self.isOfflineTrack = false
             }
         }
 
@@ -123,12 +147,39 @@ public class AudioPlayerService: NSObject, ObservableObject {
         playTrack(queue[prevIdx])
     }
 
+    // MARK: - Queue Management (Android Companion Alignment)
+
+    public func addToQueue(_ track: Track) {
+        queue.append(track)
+    }
+
+    public func playNext(_ track: Track) {
+        guard let current = currentTrack, let currentIdx = queue.firstIndex(where: { $0.id == current.id }) else {
+            queue.insert(track, at: 0)
+            return
+        }
+        queue.insert(track, at: currentIdx + 1)
+    }
+
+    public func removeFromQueue(at index: Int) {
+        guard index >= 0 && index < queue.count else { return }
+        queue.remove(at: index)
+    }
+
+    public func clearQueue() {
+        if let current = currentTrack {
+            queue = [current]
+        } else {
+            queue.removeAll()
+        }
+    }
+
     // MARK: - Modern iOS Audio Session Interruption & Route Change Observers
 
     private func setupAudioSessionObservers() {
         let center = NotificationCenter.default
 
-        // Handle Audio Interruptions (e.g., incoming phone call, FaceTime, Siri, GPS announcements)
+        // Handle Audio Interruptions (e.g., incoming phone call, FaceTime, Siri)
         center.addObserver(
             forName: AVAudioSession.interruptionNotification,
             object: AVAudioSession.sharedInstance(),
@@ -167,10 +218,8 @@ public class AudioPlayerService: NSObject, ObservableObject {
 
             switch reason {
             case .oldDeviceUnavailable:
-                // Headphones unplugged or AirPods disconnected
                 self.pause()
             case .newDeviceAvailable:
-                // Connected to CarPlay or Bluetooth car audio
                 print("Downtify: New audio output device detected.")
             default:
                 break
@@ -178,47 +227,41 @@ public class AudioPlayerService: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - Modern MPRemoteCommandCenter (iOS 18, CarPlay, Apple Watch & Lock Screen)
+    // MARK: - MPRemoteCommandCenter (CarPlay, Apple Watch & Lock Screen)
 
     private func setupRemoteCommands() {
         let commandCenter = MPRemoteCommandCenter.shared()
 
-        // Play Command
         commandCenter.playCommand.isEnabled = true
         commandCenter.playCommand.addTarget { [weak self] _ in
             self?.play()
             return .success
         }
 
-        // Pause Command
         commandCenter.pauseCommand.isEnabled = true
         commandCenter.pauseCommand.addTarget { [weak self] _ in
             self?.pause()
             return .success
         }
 
-        // Toggle Play/Pause
         commandCenter.togglePlayPauseCommand.isEnabled = true
         commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
             self?.togglePlayPause()
             return .success
         }
 
-        // Next Track Command
         commandCenter.nextTrackCommand.isEnabled = true
         commandCenter.nextTrackCommand.addTarget { [weak self] _ in
             self?.nextTrack()
             return .success
         }
 
-        // Previous Track Command
         commandCenter.previousTrackCommand.isEnabled = true
         commandCenter.previousTrackCommand.addTarget { [weak self] _ in
             self?.prevTrack()
             return .success
         }
 
-        // Lock Screen & CarPlay Scrubbing (changePlaybackPosition)
         commandCenter.changePlaybackPositionCommand.isEnabled = true
         commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
             guard let self = self, let positionEvent = event as? MPChangePlaybackPositionCommandEvent else {
@@ -228,7 +271,6 @@ public class AudioPlayerService: NSObject, ObservableObject {
             return .success
         }
 
-        // Skip 15s forward & backward
         commandCenter.skipForwardCommand.preferredIntervals = [15]
         commandCenter.skipForwardCommand.isEnabled = true
         commandCenter.skipForwardCommand.addTarget { [weak self] _ in
@@ -245,7 +287,6 @@ public class AudioPlayerService: NSObject, ObservableObject {
             return .success
         }
 
-        // Like / Favorite command
         commandCenter.likeCommand.isEnabled = true
         commandCenter.likeCommand.localizedTitle = "Favorite on Downtify"
         commandCenter.likeCommand.addTarget { [weak self] _ in

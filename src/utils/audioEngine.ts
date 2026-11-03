@@ -33,7 +33,20 @@ class AudioEngine {
   private stepIntervalId: number | null = null;
 
   constructor() {
-    // Lazy init audio context on first user interaction
+    // WebKit / iOS Safari AudioContext gesture unlocker
+    if (typeof window !== 'undefined') {
+      const unlockAudio = () => {
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume().catch(() => {});
+        }
+        window.removeEventListener('touchstart', unlockAudio);
+        window.removeEventListener('touchend', unlockAudio);
+        window.removeEventListener('click', unlockAudio);
+      };
+      window.addEventListener('touchstart', unlockAudio, { passive: true, once: true });
+      window.addEventListener('touchend', unlockAudio, { passive: true, once: true });
+      window.addEventListener('click', unlockAudio, { passive: true, once: true });
+    }
   }
 
   private initContext() {

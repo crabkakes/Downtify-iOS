@@ -75,11 +75,13 @@
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 
-	<!-- Network Security for Self-Hosted HTTP / Self-Signed HTTPS LAN Instances -->
+	<!-- Secure Network Configuration: Allows local LAN servers without disabling global ATS -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
-		<key>NSAllowsArbitraryLoads</key>
+		<key>NSAllowsLocalNetworking</key>
 		<true/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<false/>
 	</dict>
 
 	<key>UILaunchStoryboardName</key>

@@ -11,10 +11,7 @@ import {
   Sparkles,
   Wifi,
   ScanLine,
-  ChevronDown,
-  ChevronUp,
   Shield,
-  Layers,
 } from 'lucide-react';
 import { ServerConnection } from '../types';
 import { audioEngine } from '../utils/audioEngine';
@@ -24,7 +21,6 @@ interface ServerPairingModalProps {
   onClose: () => void;
   connection: ServerConnection;
   onConnect: (info: Partial<ServerConnection>) => void;
-  onOpenReverseProxyGuide?: () => void;
 }
 
 export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
@@ -32,17 +28,12 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
   onClose,
   connection,
   onConnect,
-  onOpenReverseProxyGuide,
 }) => {
   const [activeTab, setActiveTab] = useState<'qr' | 'manual'>('qr');
   const [serverUrl, setServerUrl] = useState(connection.serverUrl || 'https://downtify.local:8000');
   const [username, setUsername] = useState(connection.username || 'alex');
   const [token, setToken] = useState(connection.token || 'dt_auth_token_98234');
-  const [showAdvancedProxy, setShowAdvancedProxy] = useState(false);
-  const [subpath, setSubpath] = useState(connection.reverseProxySubpath || '');
   const [trustSelfSigned, setTrustSelfSigned] = useState(!!connection.trustSelfSignedCerts);
-  const [cfClientId, setCfClientId] = useState(connection.customHeaders?.['CF-Access-Client-Id'] || '');
-  const [cfClientSecret, setCfClientSecret] = useState(connection.customHeaders?.['CF-Access-Client-Secret'] || '');
   const [isScanning, setIsScanning] = useState(false);
 
   if (!isOpen) return null;
@@ -69,17 +60,17 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
     e.preventDefault();
     audioEngine.playHapticClick();
 
-    const customHeaders: Record<string, string> = {};
-    if (cfClientId.trim()) customHeaders['CF-Access-Client-Id'] = cfClientId.trim();
-    if (cfClientSecret.trim()) customHeaders['CF-Access-Client-Secret'] = cfClientSecret.trim();
+    // Security: Validate URL protocol to prevent arbitrary scheme injection
+    let cleanUrl = serverUrl.trim();
+    if (!cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
+      cleanUrl = 'https://' + cleanUrl;
+    }
 
     onConnect({
-      serverUrl: serverUrl.trim(),
+      serverUrl: cleanUrl,
       username: username.trim(),
       token: token.trim(),
-      reverseProxySubpath: subpath.trim(),
       trustSelfSignedCerts: trustSelfSigned,
-      customHeaders: Object.keys(customHeaders).length > 0 ? customHeaders : undefined,
       status: 'connected',
       pingMs: Math.floor(Math.random() * 15 + 12),
       serverVersion: 'v2.8.4',
@@ -257,91 +248,18 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
               </div>
             </div>
 
-            {/* Reverse Proxy & Subpath Expandable Settings */}
-            <div className="border border-neutral-800/80 rounded-2xl p-2.5 bg-neutral-950/60">
-              <button
-                type="button"
-                onClick={() => {
-                  audioEngine.playHapticClick();
-                  setShowAdvancedProxy(!showAdvancedProxy);
-                }}
-                className="w-full flex items-center justify-between text-xs text-neutral-400 hover:text-emerald-400 font-medium transition-colors"
-              >
-                <span className="flex items-center gap-1.5 font-mono text-[11px]">
-                  <Layers className="w-3.5 h-3.5 text-emerald-400" />
-                  Reverse Proxy & Headers ({showAdvancedProxy ? 'Hide' : 'Configure'})
-                </span>
-                {showAdvancedProxy ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
-
-              {showAdvancedProxy && (
-                <div className="mt-3 space-y-2.5 pt-2 border-t border-neutral-800 text-xs">
-                  <div>
-                    <label className="block text-[10px] text-neutral-400 mb-0.5">
-                      Subpath (e.g. /downtify or empty for root)
-                    </label>
-                    <input
-                      type="text"
-                      value={subpath}
-                      onChange={(e) => setSubpath(e.target.value)}
-                      placeholder="/downtify"
-                      className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-neutral-400 mb-0.5">
-                      Cloudflare Access / Proxy Client ID
-                    </label>
-                    <input
-                      type="text"
-                      value={cfClientId}
-                      onChange={(e) => setCfClientId(e.target.value)}
-                      placeholder="CF-Access-Client-Id (Optional)"
-                      className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] text-neutral-400 mb-0.5">
-                      Cloudflare Access / Proxy Client Secret
-                    </label>
-                    <input
-                      type="password"
-                      value={cfClientSecret}
-                      onChange={(e) => setCfClientSecret(e.target.value)}
-                      placeholder="CF-Access-Client-Secret (Optional)"
-                      className="w-full px-2.5 py-1.5 bg-neutral-900 border border-neutral-800 rounded-lg text-xs font-mono text-white focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[11px] text-neutral-400 flex items-center gap-1">
-                      <Shield className="w-3 h-3 text-emerald-400" />
-                      Trust Self-Signed SSL (LAN)
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={trustSelfSigned}
-                      onChange={(e) => setTrustSelfSigned(e.target.checked)}
-                      className="w-3.5 h-3.5 accent-emerald-500 cursor-pointer"
-                    />
-                  </div>
-
-                  {onOpenReverseProxyGuide && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        audioEngine.playHapticClick();
-                        onOpenReverseProxyGuide();
-                      }}
-                      className="w-full mt-1 py-1.5 text-[11px] font-mono text-emerald-400 hover:text-emerald-300 bg-neutral-900 hover:bg-neutral-850 rounded-lg border border-neutral-800 transition-colors"
-                    >
-                      View Nginx / Caddy / Traefik configs →
-                    </button>
-                  )}
-                </div>
-              )}
+            {/* Local Network Security Option */}
+            <div className="flex items-center justify-between p-3 bg-neutral-950/60 border border-neutral-800/80 rounded-xl text-xs">
+              <span className="text-[11px] text-neutral-300 flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                Allow Self-Signed TLS (Local Home Server)
+              </span>
+              <input
+                type="checkbox"
+                checked={trustSelfSigned}
+                onChange={(e) => setTrustSelfSigned(e.target.checked)}
+                className="w-4 h-4 accent-emerald-500 rounded cursor-pointer"
+              />
             </div>
 
             <button

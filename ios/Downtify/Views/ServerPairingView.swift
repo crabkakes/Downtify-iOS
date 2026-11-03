@@ -11,8 +11,6 @@ struct ServerPairingView: View {
     @State private var serverUrl = "https://downtify.local:8000"
     @State private var username = "alex"
     @State private var token = ""
-    @State private var subpath = ""
-    @State private var cfClientId = ""
     @State private var trustSelfSigned = false
     @State private var selectedTab = 0
     @State private var isSimulatingQRScan = false
@@ -74,76 +72,56 @@ struct ServerPairingView: View {
                                 .font(.footnote)
                                 .fontWeight(.semibold)
                                 .foregroundColor(.emeraldGreen)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 8)
+                                .frame(minHeight: 44)
+                                .padding(.horizontal, 20)
                                 .background(Color.emeraldGreen.opacity(0.15))
-                                .cornerRadius(20)
+                                .cornerRadius(22)
                         }
                     }
                     .frame(maxHeight: .infinity)
                 } else {
-                    // Manual Login Form with Reverse Proxy Support
+                    // Manual Login Form
                     ScrollView {
                         VStack(spacing: 14) {
-                            TextField("Server URL (e.g. https://music.yourdomain.com)", text: $serverUrl)
+                            TextField("Server URL (e.g. https://music.yourdomain.com:8000)", text: $serverUrl)
                                 .padding()
+                                .frame(minHeight: 48)
                                 .background(Color(white: 0.12))
                                 .cornerRadius(12)
                                 .foregroundColor(.white)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
 
                             TextField("Username", text: $username)
                                 .padding()
+                                .frame(minHeight: 48)
                                 .background(Color(white: 0.12))
                                 .cornerRadius(12)
                                 .foregroundColor(.white)
+                                .autocapitalization(.none)
+                                .disableAutocorrection(true)
 
                             SecureField("Password or Auth Token", text: $token)
                                 .padding()
+                                .frame(minHeight: 48)
                                 .background(Color(white: 0.12))
                                 .cornerRadius(12)
                                 .foregroundColor(.white)
 
-                            // Reverse Proxy Accordion
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("REVERSE PROXY & GATEWAY")
-                                    .font(.caption2)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.emeraldGreen)
-
-                                TextField("Subpath prefix (e.g. /downtify or empty)", text: $subpath)
-                                    .padding(12)
-                                    .background(Color(white: 0.08))
-                                    .cornerRadius(10)
-                                    .foregroundColor(.white)
-                                    .font(.system(.caption, design: .monospaced))
-
-                                TextField("Cloudflare Access Client ID (Optional)", text: $cfClientId)
-                                    .padding(12)
-                                    .background(Color(white: 0.08))
-                                    .cornerRadius(10)
-                                    .foregroundColor(.white)
-                                    .font(.system(.caption, design: .monospaced))
-
-                                Toggle("Trust Self-Signed SSL (LAN / Home Lab)", isOn: $trustSelfSigned)
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .tint(.emeraldGreen)
-                            }
-                            .padding()
-                            .background(Color(white: 0.10))
-                            .cornerRadius(12)
+                            // Local TLS Options
+                            Toggle("Trust Self-Signed TLS (Local Home Server)", isOn: $trustSelfSigned)
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .tint(.emeraldGreen)
+                                .padding(12)
+                                .background(Color(white: 0.10))
+                                .cornerRadius(12)
 
                             Button {
-                                var headers: [String: String] = [:]
-                                if !cfClientId.trimmingCharacters(in: .whitespaces).isEmpty {
-                                    headers["CF-Access-Client-Id"] = cfClientId.trimmingCharacters(in: .whitespaces)
-                                }
                                 apiService.connectManually(
                                     url: serverUrl,
                                     user: username,
                                     token: token,
-                                    subpath: subpath,
-                                    customHeaders: headers,
                                     trustSelfSigned: trustSelfSigned
                                 )
                             } label: {
@@ -151,7 +129,7 @@ struct ServerPairingView: View {
                                     .fontWeight(.semibold)
                                     .foregroundColor(.black)
                                     .frame(maxWidth: .infinity)
-                                    .padding()
+                                    .frame(minHeight: 50)
                                     .background(Color.emeraldGreen)
                                     .cornerRadius(14)
                             }
@@ -172,6 +150,7 @@ struct ServerPairingView: View {
                     Text("Explore with Demo Server")
                         .font(.subheadline)
                         .foregroundColor(.gray)
+                        .frame(minHeight: 44)
                 }
                 .padding(.bottom, 20)
             }

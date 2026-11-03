@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import AVKit
 
 struct NowPlayingView: View {
     let track: Track
@@ -151,11 +152,8 @@ struct NowPlayingView: View {
                         .foregroundColor(showingLyrics ? .emeraldGreen : .gray)
                     }
                     Spacer()
-                    Button { /* AirPlay */ } label: {
-                        Image(systemName: "airplayaudio")
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                    }
+                    AirPlayRoutePickerView()
+                        .frame(width: 32, height: 32)
                 }
                 .padding(.horizontal)
             }
@@ -211,3 +209,16 @@ struct LyricsScrollView: View {
         return getActiveIndex() == lineIndex
     }
 }
+
+struct AirPlayRoutePickerView: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.tintColor = .systemGray
+        picker.activeTintColor = UIColor(red: 16/255, green: 185/255, blue: 129/255, alpha: 1.0)
+        picker.prioritizesVideoDevices = false
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
+}
+

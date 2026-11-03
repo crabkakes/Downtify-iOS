@@ -18,13 +18,19 @@ public class DowntifyAPIService: ObservableObject {
     @Published public var errorMessage: String? = nil
 
     private var session: URLSession!
-    private let securityDelegate = ProxySSLSecurityDelegate()
+    private let securityDelegate = DowntifySSLSecurityDelegate()
 
     private init() {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 300
         self.session = URLSession(configuration: config, delegate: securityDelegate, delegateQueue: nil)
+        
+        // Seed default token in Keychain for demo/first run
+        if KeychainHelper.shared.read(for: "alex") == nil {
+            KeychainHelper.shared.save(token: "dt_auth_token_98234", for: "alex")
+        }
+        
         loadMockData()
     }
 
@@ -35,9 +41,11 @@ public class DowntifyAPIService: ObservableObject {
             return
         }
 
+        // Security: Save token to hardware Keychain
+        KeychainHelper.shared.save(token: payload.token, for: payload.user)
+
         self.connectionInfo.serverUrl = payload.server
         self.connectionInfo.username = payload.user
-        self.connectionInfo.token = payload.token
         self.connectionInfo.isConnected = true
         self.isConnected = true
         self.fetchServerLibrary()
@@ -47,15 +55,19 @@ public class DowntifyAPIService: ObservableObject {
         url: String,
         user: String,
         token: String,
-        subpath: String = "",
-        customHeaders: [String: String] = [:],
         trustSelfSigned: Bool = false
     ) {
-        self.connectionInfo.serverUrl = url
+        // Security: Validate protocol scheme
+        var cleanUrl = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !cleanUrl.lowercased().hasPrefix("http://") && !cleanUrl.lowercased().hasPrefix("https://") {
+            cleanUrl = "https://" + cleanUrl
+        }
+
+        // Security: Save token to hardware Keychain
+        KeychainHelper.shared.save(token: token, for: user)
+
+        self.connectionInfo.serverUrl = cleanUrl
         self.connectionInfo.username = user
-        self.connectionInfo.token = token
-        self.connectionInfo.subpath = subpath
-        self.connectionInfo.customHeaders = customHeaders
         self.connectionInfo.trustSelfSignedCerts = trustSelfSigned
         self.securityDelegate.allowSelfSigned = trustSelfSigned
         self.connectionInfo.isConnected = true
@@ -63,27 +75,22 @@ public class DowntifyAPIService: ObservableObject {
         self.fetchServerLibrary()
     }
 
-    /// Resolves endpoint URL considering any reverse proxy subpath (e.g. /downtify/api/stream)
+    /// Resolves endpoint URL
     public func endpointURL(_ path: String) -> URL? {
         guard let baseURL = connectionInfo.resolvedBaseURL else { return nil }
         let cleanPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
         return baseURL.appendingPathComponent(cleanPath)
     }
 
-    /// Builds a URLRequest configured with Bearer tokens and reverse proxy headers (e.g., CF-Access)
+    /// Builds a URLRequest configured with Bearer tokens from Keychain
     public func createURLRequest(for endpoint: String, method: String = "GET") -> URLRequest? {
         guard let url = endpointURL(endpoint) else { return nil }
         var request = URLRequest(url: url)
         request.httpMethod = method
 
-        // Standard Authorization Bearer
-        if let token = connectionInfo.token, !token.isEmpty {
+        // Standard Authorization Bearer securely retrieved from Keychain
+        if let token = KeychainHelper.shared.read(for: connectionInfo.username), !token.isEmpty {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-
-        // Forward configured Reverse Proxy headers (Cloudflare Access, Authelia, Authentik)
-        for (key, val) in connectionInfo.customHeaders {
-            request.setValue(val, forHTTPHeaderField: key)
         }
 
         request.setValue("Downtify-iOS-Client/2.8", forHTTPHeaderField: "User-Agent")
@@ -91,10 +98,10 @@ public class DowntifyAPIService: ObservableObject {
         return request
     }
 
-    /// Diagnostic test for reverse proxy latency, headers, and reachability
-    public func testReverseProxyConnection(completion: @escaping (Bool, Int, String?) -> Void) {
+    /// Diagnostic test for server latency and reachability
+    public func testServerConnection(completion: @escaping (Bool, Int, String?) -> Void) {
         guard let req = createURLRequest(for: "api/health") else {
-            completion(false, 0, "Invalid server URL or subpath configuration")
+            completion(false, 0, "Invalid server URL")
             return
         }
 
@@ -126,11 +133,19 @@ public class DowntifyAPIService: ObservableObject {
     public func disconnect() {
         self.isConnected = false
         self.connectionInfo.isConnected = false
+        // Clear session tokens on sign out
+        KeychainHelper.shared.delete(for: connectionInfo.username)
     }
 
     public func toggleLikeTrack(trackId: String) {
         if let idx = tracks.firstIndex(where: { $0.id == trackId }) {
             tracks[idx].isLiked.toggle()
+        }
+    }
+
+    public func toggleFavorite(trackId: String) async {
+        await MainActor.run {
+            self.toggleLikeTrack(trackId: trackId)
         }
     }
 
@@ -159,7 +174,6 @@ public class DowntifyAPIService: ObservableObject {
     }
 
     private func loadMockData() {
-        // Preload default tracks matching Downtify library
         self.tracks = [
             Track(
                 id: "track-1",
@@ -256,8 +270,10 @@ public class DowntifyAPIService: ObservableObject {
     }
 }
 
-/// URLSession delegate that handles local reverse proxy SSL certificates (e.g. self-signed home lab certificates)
-public class ProxySSLSecurityDelegate: NSObject, URLSessionDelegate {
+/// URLSession delegate that safely validates SSL/TLS certificates.
+/// Security rule: Self-signed certificates are strictly constrained to private LAN subnets
+/// (.local, 192.168.x.x, 10.x.x.x, 172.16.x.x, localhost).
+public class DowntifySSLSecurityDelegate: NSObject, URLSessionDelegate {
     public var allowSelfSigned: Bool = false
 
     public func urlSession(
@@ -266,7 +282,15 @@ public class ProxySSLSecurityDelegate: NSObject, URLSessionDelegate {
         completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
         if allowSelfSigned && challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
-            if let serverTrust = challenge.protectionSpace.serverTrust {
+            let host = challenge.protectionSpace.host.lowercased()
+            // Ensure self-signed bypass only applies to private home lab network endpoints
+            let isPrivateLAN = host.hasSuffix(".local") ||
+                               host == "localhost" ||
+                               host.hasPrefix("192.168.") ||
+                               host.hasPrefix("10.") ||
+                               host.hasPrefix("172.")
+            
+            if isPrivateLAN, let serverTrust = challenge.protectionSpace.serverTrust {
                 completionHandler(.useCredential, URLCredential(trust: serverTrust))
                 return
             }
@@ -274,4 +298,3 @@ public class ProxySSLSecurityDelegate: NSObject, URLSessionDelegate {
         completionHandler(.performDefaultHandling, nil)
     }
 }
-

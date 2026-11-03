@@ -21,9 +21,7 @@ import {
   Trash2,
   ArrowDownCircle,
   Image as ImageIcon,
-  Network,
   Globe,
-  Terminal,
 } from 'lucide-react';
 import { DowntifySettings, AudioFormat, BitrateOption, StreamingQuality, Track } from '../types';
 import { audioEngine } from '../utils/audioEngine';
@@ -36,7 +34,6 @@ interface SettingsViewProps {
   onOpenServerPairing: () => void;
   onOpenCarPlay: () => void;
   onOpenScreenshots: () => void;
-  onOpenReverseProxy: () => void;
   onDownloadAllLiked: () => void;
   onClearOfflineCache: () => void;
 }
@@ -49,7 +46,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onOpenServerPairing,
   onOpenCarPlay,
   onOpenScreenshots,
-  onOpenReverseProxy,
   onDownloadAllLiked,
   onClearOfflineCache,
 }) => {
@@ -112,80 +108,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <span className="text-neutral-400">Server Version</span>
             <span className="text-neutral-300 font-mono text-[11px]">{conn.serverVersion}</span>
           </div>
-          {conn.reverseProxySubpath && (
-            <div className="flex items-center justify-between">
-              <span className="text-neutral-400">Reverse Proxy Subpath</span>
-              <span className="text-emerald-400 font-mono text-[11px]">{conn.reverseProxySubpath}</span>
-            </div>
-          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
+        <div>
           <button
             onClick={() => {
               audioEngine.playHapticClick();
               onOpenServerPairing();
             }}
-            className="py-2.5 px-3 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center justify-center gap-1.5 transition-all"
+            className="w-full py-2.5 px-3 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center justify-center gap-2 transition-all shadow-md"
           >
             <QrCode className="w-4 h-4" />
-            <span>Switch / QR</span>
-          </button>
-
-          <button
-            onClick={() => {
-              audioEngine.playHapticClick();
-              onOpenReverseProxy();
-            }}
-            className="py-2.5 px-3 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-center gap-1.5 transition-all"
-          >
-            <Network className="w-4 h-4 text-emerald-400" />
-            <span>Proxy Diagnostics</span>
+            <span>Switch or Re-pair Downtify Server</span>
           </button>
         </div>
-      </div>
-
-      {/* Reverse Proxy & Ingress Network Guide Card */}
-      <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-5 space-y-3.5 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-mono uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1.5">
-            <Network className="w-3.5 h-3.5" />
-            Reverse Proxy & Gateway Architecture
-          </h3>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            Nginx · Caddy · Traefik
-          </span>
-        </div>
-
-        <p className="text-xs text-neutral-400 leading-relaxed">
-          Access Downtify securely over <strong className="text-neutral-200">HTTPS</strong> behind Nginx, Caddy, Traefik, or Cloudflare Tunnel with zero-buffering FLAC audio streaming (<code className="text-emerald-400 font-mono text-[10px]">proxy_buffering off;</code>) and byte-range scrub seeking.
-        </p>
-
-        <div className="p-3 bg-neutral-950 rounded-2xl border border-neutral-800 space-y-2 text-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-neutral-400">Ingress Compatibility</span>
-            <span className="text-emerald-400 font-mono text-[11px] font-semibold">Subdomain & Subpath</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-neutral-400">iOS AVPlayer HTTP Range</span>
-            <span className="text-neutral-200 font-mono text-[11px]">206 Partial Content</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-neutral-400">Zero Trust Auth Tokens</span>
-            <span className="text-neutral-200 font-mono text-[11px]">CF-Access / Bearer</span>
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            audioEngine.playHapticClick();
-            onOpenReverseProxy();
-          }}
-          className="w-full py-2.5 px-3 rounded-xl bg-neutral-950 hover:bg-neutral-850 border border-emerald-500/40 hover:border-emerald-500 text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-500/10"
-        >
-          <Terminal className="w-4 h-4" />
-          <span>Open Reverse Proxy Config Generator & Tester</span>
-        </button>
       </div>
 
       {/* Streaming Quality (Wi-Fi vs Cellular - Downtify Android signature feature) */}
@@ -464,16 +400,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               iosFolder?.file('LiveActivity/NowPlayingActivityAttributes.swift', '// iOS 18 ActivityKit Live Activities');
               iosFolder?.file('Models/Track.swift', '// Swift Track & Playlist models');
               iosFolder?.file('Models/ServerModels.swift', '// Swift Server connection models');
+              iosFolder?.file('Services/KeychainHelper.swift', '// iOS Keychain secure token storage');
               iosFolder?.file('Services/DowntifyAPIService.swift', '// Swift REST API networking');
               iosFolder?.file('Services/AudioPlayerService.swift', '// Swift AVPlayer, MPNowPlaying & Route Changes');
               iosFolder?.file('Services/DownloadManager.swift', '// Swift background offline downloader');
               iosFolder?.file('CarPlay/CarPlaySceneDelegate.swift', '// Swift CarPlay CPTemplateApplicationSceneDelegate');
               iosFolder?.file('CarPlay/CarPlayTemplateManager.swift', '// Swift CarPlay CPTabBarTemplate');
               iosFolder?.file('Views/MainTabView.swift', '// SwiftUI MainTabView');
+              iosFolder?.file('Views/HomeView.swift', '// SwiftUI Home dashboard');
+              iosFolder?.file('Views/SearchView.swift', '// SwiftUI Live library search');
+              iosFolder?.file('Views/LibraryView.swift', '// SwiftUI Offline & playlists library');
+              iosFolder?.file('Views/SettingsView.swift', '// SwiftUI Audio quality & server settings');
               iosFolder?.file('Views/NowPlayingView.swift', '// SwiftUI NowPlayingView with lyrics');
-              iosFolder?.file('Views/ServerPairingView.swift', '// SwiftUI QR & login pairing with Reverse Proxy');
+              iosFolder?.file('Views/ServerPairingView.swift', '// SwiftUI QR & login pairing');
               iosFolder?.file('Info.plist', '// Info.plist with iOS 18 permissions & CarPlay');
-              zip.file('REVERSE_PROXY.md', '# Downtify Reverse Proxy Production Guide\n# Covers Nginx, Caddy, Traefik, Apache, and Cloudflare Tunnels');
 
               const blob = await zip.generateAsync({ type: 'blob' });
               const a = document.createElement('a');
