@@ -9,8 +9,8 @@ import Combine
 public class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDelegate {
     public static let shared = DownloadManager()
 
-    @Published public var downloadedTrackIds: Set<String> = ["track-1", "track-2"]
-    @Published public var totalCachedSizeMb: Double = 34.4
+    @Published public var downloadedTrackIds: Set<String> = []
+    @Published public var totalCachedSizeMb: Double = 0.0
     @Published public var activeDownloads: [String: Double] = [:]
     @Published public var isOfflineModeOnly: Bool = false
 
@@ -44,7 +44,7 @@ public class DownloadManager: NSObject, ObservableObject, URLSessionDownloadDele
                 return fileURL
             }
         }
-        // Simulated local mock path fallback for bundled sample tracks
+        // Returns offline storage path for cached downloads
         if downloadedTrackIds.contains(trackId) {
             return offlineMusicDirectory.appendingPathComponent("\(trackId).flac")
         }

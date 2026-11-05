@@ -23,13 +23,13 @@ struct HomeView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
                                     Circle()
-                                        .fill(apiService.isConnected ? Color.emeraldGreen : Color.red)
+                                        .fill(apiService.isConnected ? Color.emeraldGreen : Color.orange)
                                         .frame(width: 8, height: 8)
-                                    Text(apiService.isConnected ? "CONNECTED TO SERVER" : "OFFLINE")
+                                    Text(apiService.isConnected ? "CONNECTED TO SERVER" : "SERVER NOT CONNECTED")
                                         .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .foregroundColor(apiService.isConnected ? .emeraldGreen : .red)
+                                        .foregroundColor(apiService.isConnected ? .emeraldGreen : .orange)
                                 }
-                                Text(apiService.connectionInfo.serverUrl)
+                                Text(apiService.isConnected ? apiService.connectionInfo.serverUrl : "Connect in Settings to sync music")
                                     .font(.caption2)
                                     .foregroundColor(.gray)
                                     .lineLimit(1)
@@ -37,18 +37,20 @@ struct HomeView: View {
 
                             Spacer()
 
-                            HStack(spacing: 4) {
-                                Image(systemName: "bolt.fill")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.emeraldGreen)
-                                Text("\(apiService.connectionInfo.pingMs) ms")
-                                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                                    .foregroundColor(.white)
+                            if apiService.isConnected {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "bolt.fill")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.emeraldGreen)
+                                    Text("\(apiService.connectionInfo.pingMs) ms")
+                                        .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                        .foregroundColor(.white)
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Color(white: 0.15))
+                                .cornerRadius(8)
                             }
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color(white: 0.15))
-                            .cornerRadius(8)
                         }
                         .padding()
                         .background(Color(white: 0.10))
@@ -56,7 +58,7 @@ struct HomeView: View {
                         .padding(.horizontal)
 
                         // Liked Songs Hero Banner
-                        if let likedPl = apiService.playlists.first(where: { $0.isSpecialLiked }) {
+                        if let likedPl = apiService.playlists.first(where: { $0.isSpecialLiked }), !likedPl.trackIds.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack(spacing: 14) {
                                     ZStack {
@@ -103,48 +105,69 @@ struct HomeView: View {
                             .padding(.horizontal)
                         }
 
-                        // Quick 6-Grid Mixes
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Recent & Favorite Tracks")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.white)
-                                .padding(.horizontal)
+                        // Tracks Grid or Clean Empty State
+                        if apiService.tracks.isEmpty {
+                            VStack(spacing: 14) {
+                                Image(systemName: "music.note.house")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray.opacity(0.7))
+                                Text("Library is Ready")
+                                    .font(.headline)
+                                    .foregroundColor(.white)
+                                Text("Pair your Downtify server or download tracks to build your library.")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 24)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 36)
+                            .background(Color(white: 0.08))
+                            .cornerRadius(18)
+                            .padding(.horizontal)
+                        } else {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Recent & Favorite Tracks")
+                                    .font(.title3)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal)
 
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                                ForEach(apiService.tracks) { track in
-                                    Button {
-                                        audioPlayer.playTrack(track)
-                                    } label: {
-                                        HStack(spacing: 10) {
-                                            AsyncImage(url: URL(string: track.coverUrl)) { img in
-                                                img.resizable().scaledToFill()
-                                            } placeholder: {
-                                                Color.gray.opacity(0.3)
+                                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                    ForEach(apiService.tracks) { track in
+                                        Button {
+                                            audioPlayer.playTrack(track)
+                                        } label: {
+                                            HStack(spacing: 10) {
+                                                AsyncImage(url: URL(string: track.coverUrl)) { img in
+                                                    img.resizable().scaledToFill()
+                                                } placeholder: {
+                                                    Color.gray.opacity(0.3)
+                                                }
+                                                .frame(width: 48, height: 48)
+                                                .clipped()
+
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(track.title)
+                                                        .font(.caption)
+                                                        .fontWeight(.semibold)
+                                                        .foregroundColor(.white)
+                                                        .lineLimit(1)
+                                                    Text(track.artist)
+                                                        .font(.caption2)
+                                                        .foregroundColor(.gray)
+                                                        .lineLimit(1)
+                                                }
+                                                Spacer()
                                             }
-                                            .frame(width: 48, height: 48)
+                                            .background(Color(white: 0.14))
+                                            .cornerRadius(8)
                                             .clipped()
-
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(track.title)
-                                                    .font(.caption)
-                                                    .fontWeight(.semibold)
-                                                    .foregroundColor(.white)
-                                                    .lineLimit(1)
-                                                Text(track.artist)
-                                                    .font(.caption2)
-                                                    .foregroundColor(.gray)
-                                                    .lineLimit(1)
-                                            }
-                                            Spacer()
                                         }
-                                        .background(Color(white: 0.14))
-                                        .cornerRadius(8)
-                                        .clipped()
                                     }
                                 }
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
                         }
 
                         // Server Downloads In Progress (Android feature)

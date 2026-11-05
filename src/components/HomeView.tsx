@@ -54,7 +54,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-1.5 text-xs text-neutral-400 font-medium">
-            <span>{greeting}, {connection.username}</span>
+            <span>
+              {connection.status === 'connected' && connection.username
+                ? `${greeting}, ${connection.username}`
+                : 'Self-Hosted Music Companion'}
+            </span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-white mt-0.5">
             Downtify
@@ -67,20 +71,60 @@ export const HomeView: React.FC<HomeViewProps> = ({
             audioEngine.playHapticClick();
             onOpenServerPairing();
           }}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-neutral-900 border border-neutral-800 hover:border-emerald-500/50 text-xs text-neutral-300 transition-all shadow-sm"
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs transition-all shadow-sm ${
+            connection.status === 'connected' && connection.serverUrl
+              ? 'bg-neutral-900 border-neutral-800 hover:border-emerald-500/50 text-neutral-300'
+              : 'bg-emerald-500/10 border-emerald-500/40 hover:bg-emerald-500/20 text-emerald-400 animate-pulse'
+          }`}
         >
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-mono text-[11px] truncate max-w-[120px]">
-            {connection.serverUrl.replace(/^https?:\/\//, '')}
+          <span
+            className={`w-2 h-2 rounded-full ${
+              connection.status === 'connected' && connection.serverUrl
+                ? 'bg-emerald-400 animate-pulse'
+                : 'bg-amber-400'
+            }`}
+          />
+          <span className="font-mono text-[11px] truncate max-w-[130px]">
+            {connection.status === 'connected' && connection.serverUrl
+              ? connection.serverUrl.replace(/^https?:\/\//, '')
+              : 'Connect Server'}
           </span>
-          <span className="text-[10px] text-neutral-500 font-mono">
-            {connection.pingMs}ms
-          </span>
+          {connection.status === 'connected' && connection.pingMs > 0 && (
+            <span className="text-[10px] text-neutral-500 font-mono">
+              {connection.pingMs}ms
+            </span>
+          )}
         </button>
       </div>
 
-      {/* Quick 6-Grid Access (Spotify / Downtify-Android signature) */}
-      <div className="grid grid-cols-2 gap-2.5">
+      {/* Disconnected / Initial Pairing Prompt Card */}
+      {(!connection.serverUrl || connection.status !== 'connected') && (
+        <div
+          onClick={() => {
+            audioEngine.playHapticClick();
+            onOpenServerPairing();
+          }}
+          className="p-4 rounded-3xl bg-gradient-to-r from-emerald-950/40 via-neutral-900 to-neutral-900 border border-emerald-500/30 flex items-center justify-between cursor-pointer hover:border-emerald-500/60 transition-all shadow-lg shadow-emerald-950/20"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="w-11 h-11 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+              <Server className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white">Connect Downtify Server</h3>
+              <p className="text-xs text-neutral-400 mt-0.5">
+                Pair your self-hosted instance to load your actual music library
+              </p>
+            </div>
+          </div>
+          <button className="px-3 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold text-xs shadow-md shrink-0 transition-colors">
+            Pair Now
+          </button>
+        </div>
+      )}
+
+      {/* Quick Access Grid (Spotify / Downtify-Android signature) */}
+      <div className={`grid ${playlists.length > 0 ? 'grid-cols-2' : 'grid-cols-1'} gap-2.5`}>
         {/* Liked Songs Special Card */}
         <div
           onClick={() => {
@@ -175,49 +219,83 @@ export const HomeView: React.FC<HomeViewProps> = ({
         )}
       </div>
 
-      {/* Recently Played on Server */}
+      {/* Recently Played on Server or Ready State */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-base font-bold text-white tracking-tight">
-            Recently Played on Server
+            {tracks.length > 0 ? 'Recently Played on Server' : 'Your Music Library'}
           </h2>
-          <span className="text-xs text-neutral-500 font-mono">Synced</span>
+          {tracks.length > 0 && <span className="text-xs text-neutral-500 font-mono">Synced</span>}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {tracks.slice(0, 4).map((trk) => {
-            const isCurr = currentTrack?.id === trk.id;
-            return (
-              <div
-                key={trk.id}
+        {tracks.length === 0 ? (
+          <div className="p-6 bg-neutral-900/40 border border-neutral-800/80 rounded-3xl text-center space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-neutral-800 flex items-center justify-center mx-auto text-emerald-400">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-white">No Tracks in Library Yet</h3>
+              <p className="text-xs text-neutral-400 mt-1 max-w-xs mx-auto">
+                Connect your Downtify instance or paste a music link to queue and stream your first song.
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2 pt-1">
+              <button
                 onClick={() => {
                   audioEngine.playHapticClick();
-                  onPlayTrack(trk);
+                  onOpenServerPairing();
                 }}
-                className="p-3 bg-neutral-900/60 hover:bg-neutral-900 rounded-2xl border border-neutral-800/80 cursor-pointer transition-all active:scale-[0.98] group"
+                className="px-3.5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-semibold text-xs shadow-md transition-colors"
               >
-                <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-2 shadow">
-                  <img src={trk.coverUrl} alt={trk.title} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                    <Play className="w-7 h-7 text-white fill-white" />
-                  </div>
-                  {isCurr && isPlaying && (
-                    <div className="absolute bottom-2 right-2 p-1.5 bg-emerald-500 rounded-full text-black">
-                      <Radio className="w-3.5 h-3.5 animate-pulse" />
+                Pair Server
+              </button>
+              <button
+                onClick={() => {
+                  audioEngine.playHapticClick();
+                  onNavigateToSearch();
+                }}
+                className="px-3.5 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-medium text-xs transition-colors"
+              >
+                Search & Download
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {tracks.slice(0, 4).map((trk) => {
+              const isCurr = currentTrack?.id === trk.id;
+              return (
+                <div
+                  key={trk.id}
+                  onClick={() => {
+                    audioEngine.playHapticClick();
+                    onPlayTrack(trk);
+                  }}
+                  className="p-3 bg-neutral-900/60 hover:bg-neutral-900 rounded-2xl border border-neutral-800/80 cursor-pointer transition-all active:scale-[0.98] group"
+                >
+                  <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-2 shadow">
+                    <img src={trk.coverUrl} alt={trk.title} className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <Play className="w-7 h-7 text-white fill-white" />
                     </div>
-                  )}
-                </div>
+                    {isCurr && isPlaying && (
+                      <div className="absolute bottom-2 right-2 p-1.5 bg-emerald-500 rounded-full text-black">
+                        <Radio className="w-3.5 h-3.5 animate-pulse" />
+                      </div>
+                    )}
+                  </div>
 
-                <p className="text-sm font-semibold text-white truncate">{trk.title}</p>
-                <p className="text-xs text-neutral-400 truncate">{trk.artist}</p>
-                <div className="flex items-center justify-between mt-1 text-[10px] text-neutral-500 font-mono">
-                  <span className="uppercase text-emerald-400">{trk.format}</span>
-                  <span>{trk.fileSizeMb} MB</span>
+                  <p className="text-sm font-semibold text-white truncate">{trk.title}</p>
+                  <p className="text-xs text-neutral-400 truncate">{trk.artist}</p>
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-neutral-500 font-mono">
+                    <span className="uppercase text-emerald-400">{trk.format}</span>
+                    <span>{trk.fileSizeMb} MB</span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

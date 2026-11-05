@@ -17,14 +17,14 @@ public struct ServerConnectionInfo: Codable {
     public var trustSelfSignedCerts: Bool
 
     public init(
-        serverUrl: String = "https://downtify.local:8000",
-        username: String = "alex",
+        serverUrl: String = "",
+        username: String = "",
         serverVersion: String = "v2.8.4",
-        pingMs: Int = 18,
-        isConnected: Bool = true,
-        totalTracks: Int = 142,
-        totalPlaylists: Int = 8,
-        totalStorageGb: Double = 1.4,
+        pingMs: Int = 0,
+        isConnected: Bool = false,
+        totalTracks: Int = 0,
+        totalPlaylists: Int = 0,
+        totalStorageGb: Double = 0.0,
         trustSelfSignedCerts: Bool = false
     ) {
         self.serverUrl = serverUrl

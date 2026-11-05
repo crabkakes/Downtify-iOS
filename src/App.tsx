@@ -28,22 +28,58 @@ import {
   BitrateOption,
   ServerConnection,
 } from './types';
-import { INITIAL_TRACKS, INITIAL_PLAYLISTS } from './data/mockCatalog';
+import { EMPTY_TRACKS, EMPTY_PLAYLISTS } from './data/catalogTemplates';
 import { audioEngine } from './utils/audioEngine';
 import { createDownloadJob, buildCompletedTrack } from './utils/downloadPipeline';
+import { requestServerDownload } from './utils/serverApi';
 import { nativeIOSBridge } from './native/iosBridge';
 import confetti from 'canvas-confetti';
 
-const STORAGE_KEY_TRACKS = 'downtify_ios_tracks_v2';
-const STORAGE_KEY_PLAYLISTS = 'downtify_ios_playlists_v2';
-const STORAGE_KEY_SETTINGS = 'downtify_ios_settings_v2';
+const STORAGE_KEY_TRACKS = 'downtify_prod_tracks_v4';
+const STORAGE_KEY_PLAYLISTS = 'downtify_prod_playlists_v4';
+const STORAGE_KEY_SETTINGS = 'downtify_prod_settings_v4';
+
+// Aggressively purge any legacy storage keys or any stored mock tracks from earlier sessions
+try {
+  const allKeys = Object.keys(localStorage);
+  for (const k of allKeys) {
+    if (k.startsWith('downtify_') && !k.includes('_prod_v4')) {
+      localStorage.removeItem(k);
+    } else if (k.startsWith('downtify_')) {
+      const val = localStorage.getItem(k);
+      if (
+        val &&
+        (val.includes('Blinding Lights') ||
+          val.includes('track-1') ||
+          val.includes('alex') ||
+          val.includes('downtify.local') ||
+          val.includes('dt_auth_token') ||
+          val.includes('demo'))
+      ) {
+        localStorage.removeItem(k);
+      }
+    }
+  }
+} catch {
+  // ignore
+}
 
 export default function App() {
   // Settings & Server Connection
   const [settings, setSettings] = useState<DowntifySettings>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_SETTINGS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Ensure no stale dummy demo values persist
+        if (parsed?.serverConnection?.username === 'alex' || parsed?.serverConnection?.serverUrl?.includes('downtify.local')) {
+          parsed.serverConnection.status = 'disconnected';
+          parsed.serverConnection.serverUrl = '';
+          parsed.serverConnection.username = '';
+          parsed.serverConnection.token = '';
+        }
+        return parsed;
+      }
     } catch {
       // ignore
     }
@@ -58,16 +94,16 @@ export default function App() {
       hapticsEnabled: true,
       storageLimitMb: 1024,
       serverConnection: {
-        status: 'connected',
-        serverUrl: 'https://downtify.local:8000',
-        username: 'alex',
-        token: 'dt_auth_token_98234',
-        pingMs: 18,
+        status: 'disconnected',
+        serverUrl: '',
+        username: '',
+        token: '',
+        pingMs: 0,
         serverVersion: 'v2.8.4',
         libraryStats: {
-          totalTracks: 142,
-          totalPlaylists: 8,
-          totalStorageGb: 1.4,
+          totalTracks: 0,
+          totalPlaylists: 0,
+          totalStorageGb: 0,
         },
       },
       wifiStreamingQuality: 'original',
@@ -79,29 +115,37 @@ export default function App() {
     };
   });
 
-  // Track & Playlist Library
+  // Track & Playlist Library (Clean production defaults)
   const [tracks, setTracks] = useState<Track[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_TRACKS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hasMock = parsed.some((t: any) => t.id === 'track-1' || t.title === 'Blinding Lights');
+          if (!hasMock) return parsed;
+        }
+      }
     } catch {
       // ignore
     }
-    return INITIAL_TRACKS.map((t, idx) => ({
-      ...t,
-      isLiked: idx === 0 || idx === 1 || idx === 3,
-      isOfflineCached: idx === 0 || idx === 1,
-    }));
+    return EMPTY_TRACKS;
   });
 
   const [playlists, setPlaylists] = useState<Playlist[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_PLAYLISTS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hasMock = parsed.some((p: any) => p.id === 'pl-1' || p.name?.includes('Downtify Top Hits'));
+          if (!hasMock) return parsed;
+        }
+      }
     } catch {
       // ignore
     }
-    return INITIAL_PLAYLISTS;
+    return EMPTY_PLAYLISTS;
   });
 
   // Navigation & Modals
@@ -116,11 +160,11 @@ export default function App() {
   const [activeJobs, setActiveJobs] = useState<DownloadJob[]>([]);
 
   // Playback State
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(tracks[0] || null);
+  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [playbackState, setPlaybackState] = useState({
     isPlaying: false,
     currentTime: 0,
-    duration: tracks[0]?.duration || 180,
+    duration: 0,
   });
   const [volume, setVolume] = useState(0.85);
 
@@ -267,6 +311,15 @@ export default function App() {
   const handleRequestDownload = (url: string, format: AudioFormat, bitrate: BitrateOption) => {
     const job = createDownloadJob(url, format, bitrate);
     setActiveJobs((prev) => [job, ...prev]);
+
+    // Forward to real server if connected
+    if (settings.serverConnection.status === 'connected' && settings.serverConnection.serverUrl) {
+      requestServerDownload(
+        settings.serverConnection.serverUrl,
+        settings.serverConnection.token,
+        { url, format, bitrate }
+      ).catch(() => {});
+    }
   };
 
   // Stepper for Server Downloads
@@ -381,11 +434,11 @@ export default function App() {
     );
   };
 
-  // Reset Catalog
+  // Clear Library
   const handleResetCatalog = () => {
-    setTracks(INITIAL_TRACKS.map((t, idx) => ({ ...t, isLiked: idx % 2 === 0, isOfflineCached: idx === 0 })));
-    setPlaylists(INITIAL_PLAYLISTS);
-    setCurrentTrack(INITIAL_TRACKS[0]);
+    setTracks([]);
+    setPlaylists([]);
+    setCurrentTrack(null);
     audioEngine.stop();
   };
 
@@ -475,6 +528,24 @@ export default function App() {
             onOpenScreenshots={() => setIsScreenshotsOpen(true)}
             onDownloadAllLiked={handleDownloadAllLiked}
             onClearOfflineCache={handleClearOfflineCache}
+            onDisconnectServer={() => {
+              setSettings((s) => ({
+                ...s,
+                serverConnection: {
+                  status: 'disconnected',
+                  serverUrl: '',
+                  username: '',
+                  token: '',
+                  pingMs: 0,
+                  serverVersion: 'v2.8.4',
+                  libraryStats: {
+                    totalTracks: 0,
+                    totalPlaylists: 0,
+                    totalStorageGb: 0,
+                  },
+                },
+              }));
+            }}
           />
         )}
       </div>
@@ -542,10 +613,32 @@ export default function App() {
         isOpen={isServerPairingOpen}
         onClose={() => setIsServerPairingOpen(false)}
         connection={settings.serverConnection}
-        onConnect={(newConn) => {
+        onConnect={(newConn, realTracks) => {
           setSettings((s) => ({
             ...s,
             serverConnection: { ...s.serverConnection, ...newConn },
+          }));
+          if (realTracks && realTracks.length > 0) {
+            setTracks(realTracks);
+            setCurrentTrack(realTracks[0]);
+          }
+        }}
+        onDisconnect={() => {
+          setSettings((s) => ({
+            ...s,
+            serverConnection: {
+              status: 'disconnected',
+              serverUrl: '',
+              username: '',
+              token: '',
+              pingMs: 0,
+              serverVersion: 'v2.8.4',
+              libraryStats: {
+                totalTracks: 0,
+                totalPlaylists: 0,
+                totalStorageGb: 0,
+              },
+            },
           }));
         }}
       />

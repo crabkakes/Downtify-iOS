@@ -8,12 +8,13 @@ import SwiftUI
 struct ServerPairingView: View {
     @EnvironmentObject var apiService: DowntifyAPIService
 
-    @State private var serverUrl = "https://downtify.local:8000"
-    @State private var username = "alex"
+    @State private var serverUrl = ""
+    @State private var username = ""
     @State private var token = ""
     @State private var trustSelfSigned = false
     @State private var selectedTab = 0
-    @State private var isSimulatingQRScan = false
+    @State private var qrPayloadText = ""
+    @State private var parseError: String? = nil
 
     var body: some View {
         ZStack {
@@ -37,45 +38,75 @@ struct ServerPairingView: View {
 
                 // Pairing Selector
                 Picker("Method", selection: $selectedTab) {
-                    Text("Scan QR Code").tag(0)
+                    Text("Scan / Paste QR").tag(0)
                     Text("Manual Login").tag(1)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
 
                 if selectedTab == 0 {
-                    // QR Code Scanner Viewfinder
-                    VStack(spacing: 16) {
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 24)
-                                .stroke(Color.emeraldGreen, lineWidth: 2)
-                                .frame(width: 240, height: 240)
-                                .background(Color.black.opacity(0.4))
+                    // QR Code Scanner / Paste View
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 24)
+                                    .stroke(Color.emeraldGreen, lineWidth: 2)
+                                    .frame(width: 200, height: 200)
+                                    .background(Color.black.opacity(0.4))
 
-                            VStack {
-                                Image(systemName: "qrcode.viewfinder")
-                                    .font(.system(size: 72))
-                                    .foregroundColor(.emeraldGreen)
-                                Text("Point camera at Downtify Web\nSettings → Apps")
-                                    .font(.caption)
-                                    .multilineTextAlignment(.center)
-                                    .foregroundColor(.gray)
+                                VStack(spacing: 8) {
+                                    Image(systemName: "qrcode.viewfinder")
+                                        .font(.system(size: 56))
+                                        .foregroundColor(.emeraldGreen)
+                                    Text("Open Downtify Web\nSettings → Apps")
+                                        .font(.caption2)
+                                        .multilineTextAlignment(.center)
+                                        .foregroundColor(.gray)
+                                }
                             }
-                        }
 
-                        Button {
-                            // Instant simulated pairing with Downtify QR payload
-                            let payload = "{\"server\":\"https://downtify.local:8000\",\"user\":\"alex\",\"token\":\"dt_sec_token_982\"}"
-                            apiService.pairWithQRCode(payload)
-                        } label: {
-                            Text("Simulate QR Scan (Settings → Apps)")
-                                .font(.footnote)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.emeraldGreen)
-                                .frame(minHeight: 44)
-                                .padding(.horizontal, 20)
-                                .background(Color.emeraldGreen.opacity(0.15))
-                                .cornerRadius(22)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("OR PASTE QR CODE JSON PAYLOAD")
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.emeraldGreen)
+
+                                TextEditor(text: $qrPayloadText)
+                                    .frame(height: 70)
+                                    .padding(8)
+                                    .background(Color(white: 0.12))
+                                    .cornerRadius(12)
+                                    .foregroundColor(.white)
+                                    .font(.system(size: 11, design: .monospaced))
+                            }
+                            .padding(.horizontal)
+
+                            if let error = parseError {
+                                Text(error)
+                                    .font(.caption2)
+                                    .foregroundColor(.red)
+                                    .padding(.horizontal)
+                            }
+
+                            Button {
+                                if !qrPayloadText.trimmingCharacters(in: .whitespaces).isEmpty {
+                                    apiService.pairWithQRCode(qrPayloadText)
+                                } else if let pasteboard = UIPasteboard.general.string {
+                                    qrPayloadText = pasteboard
+                                    apiService.pairWithQRCode(pasteboard)
+                                } else {
+                                    parseError = "Please paste the QR JSON code from Settings → Apps."
+                                }
+                            } label: {
+                                Text(qrPayloadText.isEmpty ? "Paste & Pair from Clipboard" : "Connect with Payload")
+                                    .font(.footnote)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.black)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(minHeight: 46)
+                                    .background(Color.emeraldGreen)
+                                    .cornerRadius(14)
+                                    .padding(.horizontal)
+                            }
                         }
                     }
                     .frame(maxHeight: .infinity)
@@ -83,7 +114,7 @@ struct ServerPairingView: View {
                     // Manual Login Form
                     ScrollView {
                         VStack(spacing: 14) {
-                            TextField("Server URL (e.g. https://music.yourdomain.com:8000)", text: $serverUrl)
+                            TextField("Server URL (e.g. http://192.168.1.100:8000)", text: $serverUrl)
                                 .padding()
                                 .frame(minHeight: 48)
                                 .background(Color(white: 0.12))
@@ -92,7 +123,7 @@ struct ServerPairingView: View {
                                 .autocapitalization(.none)
                                 .disableAutocorrection(true)
 
-                            TextField("Username", text: $username)
+                            TextField("Username (e.g. admin)", text: $username)
                                 .padding()
                                 .frame(minHeight: 48)
                                 .background(Color(white: 0.12))
@@ -109,7 +140,7 @@ struct ServerPairingView: View {
                                 .foregroundColor(.white)
 
                             // Local TLS Options
-                            Toggle("Trust Self-Signed TLS (Local Home Server)", isOn: $trustSelfSigned)
+                            Toggle("Trust Self-Signed TLS / HTTP (Home Lab)", isOn: $trustSelfSigned)
                                 .font(.caption)
                                 .foregroundColor(.gray)
                                 .tint(.emeraldGreen)
@@ -118,6 +149,7 @@ struct ServerPairingView: View {
                                 .cornerRadius(12)
 
                             Button {
+                                guard !serverUrl.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                                 apiService.connectManually(
                                     url: serverUrl,
                                     user: username,

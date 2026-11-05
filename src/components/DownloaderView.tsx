@@ -15,7 +15,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { AudioFormat, BitrateOption, DownloadJob, SourcePlatform, Track } from '../types';
-import { SAMPLE_CSV_EXPORTIFY } from '../data/mockCatalog';
+import { SAMPLE_CSV_EXPORTIFY_HEADER } from '../data/catalogTemplates';
 import { audioEngine } from '../utils/audioEngine';
 import confetti from 'canvas-confetti';
 
@@ -39,7 +39,7 @@ export const DownloaderView: React.FC<DownloaderViewProps> = ({
   const [bitrate, setBitrate] = useState<BitrateOption>('lossless');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
-  const [csvText, setCsvText] = useState(SAMPLE_CSV_EXPORTIFY);
+  const [csvText, setCsvText] = useState(SAMPLE_CSV_EXPORTIFY_HEADER);
 
   // Detect platform from URL
   const detectPlatform = (val: string): SourcePlatform | 'unknown' => {
