@@ -257,64 +257,6 @@ export const INITIAL_PLAYLISTS: Playlist[] = [
   },
 ];
 
-export const QUICK_DEMO_LINKS = [
-  {
-    name: 'Blinding Lights',
-    artist: 'The Weeknd',
-    platform: 'Spotify Track',
-    url: 'https://open.spotify.com/track/0VjIjW4GlUZAMYd2vXMi3b',
-    type: 'track',
-    cover: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?w=200&auto=format&fit=crop&q=80',
-    duration: 200,
-    bpm: 171,
-    genre: 'Synthpop',
-  },
-  {
-    name: 'After Hours [Full Album]',
-    artist: 'The Weeknd (14 Tracks)',
-    platform: 'Spotify Album',
-    url: 'https://open.spotify.com/album/4yP0hdKOZPNshxUOjY0cZj',
-    type: 'album',
-    cover: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200&auto=format&fit=crop&q=80',
-    duration: 3360,
-    bpm: 120,
-    genre: 'R&B / Synthpop',
-  },
-  {
-    name: 'Random Access Memories',
-    artist: 'Daft Punk',
-    platform: 'Spotify Album',
-    url: 'https://open.spotify.com/album/4m2880jivSbbyEGAKfITCa',
-    type: 'album',
-    cover: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&auto=format&fit=crop&q=80',
-    duration: 4440,
-    bpm: 116,
-    genre: 'Electronic Disco',
-  },
-  {
-    name: 'Bohemian Rhapsody',
-    artist: 'Queen',
-    platform: 'YouTube Music',
-    url: 'https://music.youtube.com/watch?v=fJ9rUzIMcZQ',
-    type: 'track',
-    cover: 'https://images.unsplash.com/photo-1465847899084-d164df4dedc6?w=200&auto=format&fit=crop&q=80',
-    duration: 354,
-    bpm: 72,
-    genre: 'Classic Rock',
-  },
-  {
-    name: 'Chillhop Essentials',
-    artist: 'Various Artists',
-    platform: 'SoundCloud',
-    url: 'https://soundcloud.com/chillhopdotcom/sets/chillhop-essentials-spring',
-    type: 'playlist',
-    cover: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=200&auto=format&fit=crop&q=80',
-    duration: 1800,
-    bpm: 84,
-    genre: 'Lo-Fi Chill',
-  },
-];
-
 export const SAMPLE_CSV_EXPORTIFY = `Spotify ID,Artist Name,Track Name,Album Name,Duration (ms),Release Date
 0VjIjW4GlUZAMYd2vXMi3b,The Weeknd,Blinding Lights,After Hours,200040,2020-03-20
 2Foc5Q5nqNiosCNqttzHof,Daft Punk,Get Lucky,Random Access Memories,248413,2013-05-17

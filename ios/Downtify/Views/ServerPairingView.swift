@@ -138,22 +138,8 @@ struct ServerPairingView: View {
                     .padding(.horizontal)
                     .frame(maxHeight: .infinity)
                 }
-
-                // Demo Server Bypass Button
-                Button {
-                    apiService.connectManually(
-                        url: "https://demo.downtify.internal",
-                        user: "demo_user",
-                        token: "demo_token"
-                    )
-                } label: {
-                    Text("Explore with Demo Server")
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                        .frame(minHeight: 44)
-                }
-                .padding(.bottom, 20)
             }
+            .padding(.bottom, 20)
         }
     }
 }

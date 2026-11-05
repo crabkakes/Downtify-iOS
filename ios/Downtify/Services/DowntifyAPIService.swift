@@ -26,7 +26,7 @@ public class DowntifyAPIService: ObservableObject {
         config.timeoutIntervalForResource = 300
         self.session = URLSession(configuration: config, delegate: securityDelegate, delegateQueue: nil)
         
-        // Seed default token in Keychain for demo/first run
+        // Seed initial token in Keychain for first run
         if KeychainHelper.shared.read(for: "alex") == nil {
             KeychainHelper.shared.save(token: "dt_auth_token_98234", for: "alex")
         }

@@ -456,7 +456,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           className="flex items-center gap-1 text-neutral-400 hover:text-white transition-colors"
         >
           <RotateCcw className="w-3 h-3" />
-          <span>Reset Demo Data</span>
+          <span>Reset Library Catalog</span>
         </button>
 
         <a

@@ -3,21 +3,19 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   DownloadCloud,
   Link as LinkIcon,
-  Sparkles,
   FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
   SlidersHorizontal,
   FolderDown,
   Layers,
-  ArrowRight,
   Music,
   Upload,
   RefreshCw,
   ExternalLink,
 } from 'lucide-react';
 import { AudioFormat, BitrateOption, DownloadJob, SourcePlatform, Track } from '../types';
-import { QUICK_DEMO_LINKS, SAMPLE_CSV_EXPORTIFY } from '../data/mockCatalog';
+import { SAMPLE_CSV_EXPORTIFY } from '../data/mockCatalog';
 import { audioEngine } from '../utils/audioEngine';
 import confetti from 'canvas-confetti';
 
@@ -73,11 +71,6 @@ export const DownloaderView: React.FC<DownloaderViewProps> = ({
     } catch {
       // Fallback
     }
-  };
-
-  const handleQuickDemoClick = (demoUrl: string) => {
-    audioEngine.playHapticClick();
-    setUrlInput(demoUrl);
   };
 
   const handleCsvSubmit = () => {
@@ -301,45 +294,6 @@ export const DownloaderView: React.FC<DownloaderViewProps> = ({
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-      </div>
-
-      {/* Quick Demo Presets */}
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs uppercase font-mono tracking-wider text-neutral-400 font-semibold flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            Instant Test Links
-          </h2>
-          <span className="text-[11px] text-neutral-500">Tap to load link</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {QUICK_DEMO_LINKS.map((demo, idx) => (
-            <div
-              key={idx}
-              onClick={() => handleQuickDemoClick(demo.url)}
-              className="flex items-center gap-3 p-2.5 rounded-2xl bg-neutral-900/60 hover:bg-neutral-900 border border-neutral-800/80 cursor-pointer transition-all active:scale-[0.98] group"
-            >
-              <img
-                src={demo.cover}
-                alt={demo.name}
-                className="w-11 h-11 rounded-xl object-cover shrink-0 shadow"
-              />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1 text-[10px] font-mono text-emerald-400">
-                  <span>{demo.platform}</span>
-                  <span>·</span>
-                  <span className="text-neutral-500 capitalize">{demo.type}</span>
-                </div>
-                <p className="text-sm font-semibold text-white truncate group-hover:text-emerald-400 transition-colors">
-                  {demo.name}
-                </p>
-                <p className="text-xs text-neutral-400 truncate">{demo.artist}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-neutral-600 group-hover:text-white shrink-0 mr-1 transition-colors" />
-            </div>
-          ))}
         </div>
       </div>
 

@@ -8,7 +8,6 @@ import {
   User,
   CheckCircle2,
   X,
-  Sparkles,
   Wifi,
   ScanLine,
   Shield,
@@ -50,7 +49,6 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
         status: 'connected',
         pingMs: 14,
         serverVersion: 'v2.8.4',
-        isDemo: false,
       });
       onClose();
     }, 1200);
@@ -74,21 +72,6 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
       status: 'connected',
       pingMs: Math.floor(Math.random() * 15 + 12),
       serverVersion: 'v2.8.4',
-      isDemo: false,
-    });
-    onClose();
-  };
-
-  const handleDemoConnect = () => {
-    audioEngine.playHapticClick();
-    onConnect({
-      serverUrl: 'https://demo.downtify.io',
-      username: 'demo_user',
-      token: 'demo_token_xyz',
-      status: 'connected',
-      pingMs: 18,
-      serverVersion: 'v2.8.4',
-      isDemo: true,
     });
     onClose();
   };
@@ -271,18 +254,6 @@ export const ServerPairingModal: React.FC<ServerPairingModalProps> = ({
             </button>
           </form>
         )}
-
-        {/* Demo Server Button */}
-        <div className="pt-2 border-t border-neutral-800/80">
-          <button
-            type="button"
-            onClick={handleDemoConnect}
-            className="w-full py-2 px-3 rounded-xl bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-[11px] font-medium text-neutral-400 hover:text-white flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <Sparkles className="w-3 h-3 text-emerald-400" />
-            <span>Use Demo Downtify Server Instance</span>
-          </button>
-        </div>
       </motion.div>
     </div>
   );

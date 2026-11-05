@@ -1,5 +1,4 @@
 import { DownloadJob, Track, AudioFormat, BitrateOption, SourcePlatform } from '../types';
-import { QUICK_DEMO_LINKS } from '../data/mockCatalog';
 
 // Generates realistic synth config based on title hash so synthesized audio sounds distinct
 function generateSynthForTrack(title: string, artist: string) {
@@ -36,18 +35,7 @@ export function parseTrackInfoFromUrl(url: string): {
   source: SourcePlatform;
   duration: number;
 } {
-  // Check against our catalog of quick demos first
-  const match = QUICK_DEMO_LINKS.find((d) => url.toLowerCase().includes(d.url.toLowerCase()) || url.toLowerCase().includes(d.name.toLowerCase()));
-  if (match) {
-    return {
-      title: match.name,
-      artist: match.artist,
-      album: `${match.name} - Single`,
-      coverUrl: match.cover,
-      source: match.platform.toLowerCase().includes('spotify') ? 'spotify' : match.platform.toLowerCase().includes('youtube') ? 'youtube' : 'soundcloud',
-      duration: match.duration,
-    };
-  }
+  const trimmed = url.trim();
 
   // URL parsing heuristics
   let source: SourcePlatform = 'spotify';

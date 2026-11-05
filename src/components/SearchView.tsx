@@ -3,15 +3,12 @@ import {
   Search,
   DownloadCloud,
   Link as LinkIcon,
-  Sparkles,
   Play,
   Heart,
-  ArrowRight,
   Disc,
   Check,
 } from 'lucide-react';
 import { Track, AudioFormat, BitrateOption } from '../types';
-import { QUICK_DEMO_LINKS } from '../data/mockCatalog';
 import { audioEngine } from '../utils/audioEngine';
 
 interface SearchViewProps {
@@ -161,26 +158,6 @@ export const SearchView: React.FC<SearchViewProps> = ({
             </button>
           </div>
         </form>
-
-        {/* Quick presets */}
-        <div className="pt-2 border-t border-neutral-800/80">
-          <p className="text-[11px] text-neutral-400 mb-2">Instant demo tracks:</p>
-          <div className="flex flex-wrap gap-1.5">
-            {QUICK_DEMO_LINKS.slice(0, 3).map((d, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  audioEngine.playHapticClick();
-                  setUrlInput(d.url);
-                }}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 font-medium"
-              >
-                {d.name}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Search Results */}

@@ -64,7 +64,6 @@ export default function App() {
         token: 'dt_auth_token_98234',
         pingMs: 18,
         serverVersion: 'v2.8.4',
-        isDemo: true,
         libraryStats: {
           totalTracks: 142,
           totalPlaylists: 8,

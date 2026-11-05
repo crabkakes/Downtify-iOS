@@ -39,7 +39,6 @@ This application is engineered as a **100% native iOS application** (not a web w
 ### 1. Server Pairing & Authentication
 - **QR Code Pairing**: Connects instantly to your self-hosted Downtify instance by scanning the QR code displayed on the server under **Settings → Apps**.
 - **Manual Login**: Connect via Server URL (`https://downtify.yourdomain.com`), Username, and Auth Token / Password.
-- **Demo Mode**: Built-in mock self-hosted server for instant evaluation without requiring immediate server deployment.
 
 ### 2. Apple CarPlay Automotive Integration
 - **Driving-Safe Interface**: Compliant with Apple's automotive interface standards with high-contrast, oversized touch targets.

@@ -89,7 +89,6 @@ export interface ServerConnection {
   token?: string;
   pingMs: number;
   serverVersion: string;
-  isDemo: boolean;
   trustSelfSignedCerts?: boolean;
   libraryStats?: {
     totalTracks: number;
