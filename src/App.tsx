@@ -1,7 +1,7 @@
 /**
  * Downtify iOS
  * Native iOS Client Companion inspired by henriquesebastiao/downtify-android
- * Features Server Pairing, Offline Caching, Apple CarPlay, and Time-Synced Lyrics.
+ * Features Server Pairing, Offline Caching, Lossless Audio Engine, and Time-Synced Lyrics.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -15,7 +15,6 @@ import { MiniPlayerBar } from './components/MiniPlayerBar';
 import { NowPlayingSheet } from './components/NowPlayingSheet';
 import { ID3EditorModal } from './components/ID3EditorModal';
 import { ServerPairingModal } from './components/ServerPairingModal';
-import { CarPlaySimulatorModal } from './components/CarPlaySimulatorModal';
 import { ScreenshotsShowcaseModal } from './components/ScreenshotsShowcaseModal';
 
 import {
@@ -152,7 +151,6 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('home');
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false);
   const [isServerPairingOpen, setIsServerPairingOpen] = useState(false);
-  const [isCarPlayOpen, setIsCarPlayOpen] = useState(false);
   const [isScreenshotsOpen, setIsScreenshotsOpen] = useState(false);
   const [editingTrack, setEditingTrack] = useState<Track | null>(null);
 
@@ -225,7 +223,6 @@ export default function App() {
 
     const handleHomeBar = () => {
       setIsNowPlayingOpen(false);
-      setIsCarPlayOpen(false);
       setEditingTrack(null);
     };
 
@@ -524,7 +521,6 @@ export default function App() {
             tracks={tracks}
             onResetCatalog={handleResetCatalog}
             onOpenServerPairing={() => setIsServerPairingOpen(true)}
-            onOpenCarPlay={() => setIsCarPlayOpen(true)}
             onOpenScreenshots={() => setIsScreenshotsOpen(true)}
             onDownloadAllLiked={handleDownloadAllLiked}
             onClearOfflineCache={handleClearOfflineCache}
@@ -583,23 +579,6 @@ export default function App() {
         onOpenTagEditor={(t) => setEditingTrack(t)}
         onToggleLike={handleToggleLike}
         onToggleCacheOffline={handleToggleCacheOffline}
-        onOpenCarPlay={() => setIsCarPlayOpen(true)}
-      />
-
-      {/* Apple CarPlay Simulator */}
-      <CarPlaySimulatorModal
-        isOpen={isCarPlayOpen}
-        onClose={() => setIsCarPlayOpen(false)}
-        currentTrack={currentTrack}
-        isPlaying={playbackState.isPlaying}
-        currentTime={playbackState.currentTime}
-        duration={playbackState.duration}
-        tracks={tracks}
-        playlists={playlists}
-        onPlayTrack={handlePlayTrack}
-        onToggleLike={handleToggleLike}
-        onNext={handleNextTrack}
-        onPrev={handlePrevTrack}
       />
 
       {/* App Screenshots Showcase */}

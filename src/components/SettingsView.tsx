@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Wifi,
   Radio,
-  Car,
   QrCode,
   Trash2,
   ArrowDownCircle,
@@ -33,7 +32,6 @@ interface SettingsViewProps {
   tracks: Track[];
   onResetCatalog: () => void;
   onOpenServerPairing: () => void;
-  onOpenCarPlay: () => void;
   onOpenScreenshots: () => void;
   onDownloadAllLiked: () => void;
   onClearOfflineCache: () => void;
@@ -46,7 +44,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   tracks,
   onResetCatalog,
   onOpenServerPairing,
-  onOpenCarPlay,
   onOpenScreenshots,
   onDownloadAllLiked,
   onClearOfflineCache,
@@ -277,34 +274,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </div>
 
-      {/* Apple CarPlay Vehicle Integration Card */}
-      <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-5 space-y-3.5 shadow-xl">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs font-mono uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1.5">
-            <Car className="w-3.5 h-3.5" />
-            Apple CarPlay Automotive
-          </h3>
-          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            CarPlay.framework
-          </span>
-        </div>
-
-        <p className="text-xs text-neutral-400 leading-relaxed">
-          Downtify provides native Apple CarPlay support using <strong className="text-neutral-200">CPTemplateApplicationSceneDelegate</strong>, <strong className="text-neutral-200">CPTabBarTemplate</strong>, and <strong className="text-neutral-200">CPNowPlayingTemplate</strong> for driving-safe music playback.
-        </p>
-
-        <button
-          onClick={() => {
-            audioEngine.playHapticClick();
-            onOpenCarPlay();
-          }}
-          className="w-full py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 text-xs font-semibold flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 transition-all active:scale-98"
-        >
-          <Car className="w-4 h-4" />
-          <span>Launch CarPlay Vehicle Simulator</span>
-        </button>
-      </div>
-
       {/* App Screenshots Showcase Card */}
       <div className="bg-neutral-900/90 border border-neutral-800 rounded-3xl p-5 space-y-3.5 shadow-xl">
         <div className="flex items-center justify-between">
@@ -313,15 +282,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             App Screenshots Showcase
           </h3>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            3 High-Res Previews
+            2 High-Res Previews
           </span>
         </div>
 
         <p className="text-xs text-neutral-400 leading-relaxed">
-          View full-fidelity screenshots of the <strong className="text-neutral-200">iOS 18 Now Playing Player</strong>, the <strong className="text-neutral-200">Server Companion Home</strong>, and the <strong className="text-neutral-200">Apple CarPlay Dashboard</strong>.
+          View full-fidelity screenshots of the <strong className="text-neutral-200">iOS 18 Now Playing Player</strong> and the <strong className="text-neutral-200">Server Companion Home</strong>.
         </p>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-3 max-w-sm mx-auto">
           <div
             onClick={() => {
               audioEngine.playHapticClick();
@@ -339,15 +308,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             className="aspect-[9/16] rounded-xl overflow-hidden border border-neutral-800 cursor-pointer hover:border-emerald-500 transition-all group"
           >
             <img src="/screenshots/home.jpg" alt="Home Screenshot" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-          </div>
-          <div
-            onClick={() => {
-              audioEngine.playHapticClick();
-              onOpenScreenshots();
-            }}
-            className="aspect-[9/16] rounded-xl overflow-hidden border border-neutral-800 cursor-pointer hover:border-emerald-500 transition-all group"
-          >
-            <img src="/screenshots/carplay.jpg" alt="CarPlay Screenshot" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
           </div>
         </div>
 
@@ -407,13 +367,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="flex items-center justify-between text-neutral-300">
             <span className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              Apple CarPlay Automotive Scene
-            </span>
-            <span className="text-[11px] font-mono text-neutral-400">CPTemplateApplication</span>
-          </div>
-          <div className="flex items-center justify-between text-neutral-300">
-            <span className="flex items-center gap-1.5">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
               Local LAN Server Discovery
             </span>
             <span className="text-[11px] font-mono text-neutral-400">NSLocalNetworkUsage</span>
@@ -445,8 +398,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               iosFolder?.file('Services/DowntifyAPIService.swift', '// Swift REST API networking');
               iosFolder?.file('Services/AudioPlayerService.swift', '// Swift AVPlayer, MPNowPlaying & Route Changes');
               iosFolder?.file('Services/DownloadManager.swift', '// Swift background offline downloader');
-              iosFolder?.file('CarPlay/CarPlaySceneDelegate.swift', '// Swift CarPlay CPTemplateApplicationSceneDelegate');
-              iosFolder?.file('CarPlay/CarPlayTemplateManager.swift', '// Swift CarPlay CPTabBarTemplate');
               iosFolder?.file('Views/MainTabView.swift', '// SwiftUI MainTabView');
               iosFolder?.file('Views/HomeView.swift', '// SwiftUI Home dashboard');
               iosFolder?.file('Views/SearchView.swift', '// SwiftUI Live library search');
@@ -454,12 +405,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               iosFolder?.file('Views/SettingsView.swift', '// SwiftUI Audio quality & server settings');
               iosFolder?.file('Views/NowPlayingView.swift', '// SwiftUI NowPlayingView with lyrics');
               iosFolder?.file('Views/ServerPairingView.swift', '// SwiftUI QR & login pairing');
-              iosFolder?.file('Info.plist', '// Info.plist with iOS 18 permissions & CarPlay');
+              iosFolder?.file('Info.plist', '// Info.plist with iOS 18 permissions & background audio');
 
               const blob = await zip.generateAsync({ type: 'blob' });
               const a = document.createElement('a');
               a.href = URL.createObjectURL(blob);
-              a.download = 'Downtify_iOS18_Swift6_CarPlay_Xcode_Project.zip';
+              a.download = 'Downtify_iOS18_Swift6_Xcode_Project.zip';
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);

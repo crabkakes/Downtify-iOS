@@ -227,7 +227,7 @@ public class AudioPlayerService: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - MPRemoteCommandCenter (CarPlay, Apple Watch & Lock Screen)
+    // MARK: - MPRemoteCommandCenter (Apple Watch, Lock Screen & Bluetooth Controls)
 
     private func setupRemoteCommands() {
         let commandCenter = MPRemoteCommandCenter.shared()

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Image as ImageIcon, Smartphone, Car, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Image as ImageIcon, Smartphone, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react';
 import { audioEngine } from '../utils/audioEngine';
 
 interface ScreenshotsShowcaseModalProps {
@@ -30,13 +30,6 @@ export const ScreenshotsShowcaseModal: React.FC<ScreenshotsShowcaseModalProps> =
       type: 'mobile',
       image: '/screenshots/home.jpg',
       tag: 'Server Companion Home',
-    },
-    {
-      title: 'Apple CarPlay Dashboard',
-      subtitle: '16:9 vehicle console interface with driving-safe touch targets',
-      type: 'carplay',
-      image: '/screenshots/carplay.jpg',
-      tag: 'CarPlay.framework',
     },
   ];
 
@@ -68,7 +61,7 @@ export const ScreenshotsShowcaseModal: React.FC<ScreenshotsShowcaseModalProps> =
             </div>
             <div>
               <h3 className="text-base font-semibold text-white">App Screenshots Showcase</h3>
-              <p className="text-[11px] text-neutral-400">Native iOS & Apple CarPlay Interface</p>
+              <p className="text-[11px] text-neutral-400">Native iOS 18 Interface & Subsystems</p>
             </div>
           </div>
           <button
@@ -97,7 +90,7 @@ export const ScreenshotsShowcaseModal: React.FC<ScreenshotsShowcaseModalProps> =
                   : 'bg-neutral-950 text-neutral-400 hover:text-white border border-neutral-800'
               }`}
             >
-              {s.type === 'carplay' ? <Car className="w-3.5 h-3.5" /> : <Smartphone className="w-3.5 h-3.5" />}
+              <Smartphone className="w-3.5 h-3.5" />
               <span>{s.tag}</span>
             </button>
           ))}

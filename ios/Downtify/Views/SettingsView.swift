@@ -136,10 +136,6 @@ struct SettingsView: View {
                                 subtitle: "NSAllowsLocalNetworking enabled for home lab LAN"
                             )
                             SecurityCheckItem(
-                                title: "Apple CarPlay Automotive Scene",
-                                subtitle: "CPTemplateApplicationSceneDelegate ready"
-                            )
-                            SecurityCheckItem(
                                 title: "Apple Privacy Manifest",
                                 subtitle: "Zero third-party trackers (PrivacyInfo.xcprivacy)"
                             )

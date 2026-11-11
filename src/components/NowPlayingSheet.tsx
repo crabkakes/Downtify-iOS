@@ -22,7 +22,6 @@ import {
   Share2,
   Heart,
   ArrowDownCircle,
-  Car,
 } from 'lucide-react';
 import { Track } from '../types';
 import { audioEngine } from '../utils/audioEngine';
@@ -44,7 +43,6 @@ interface NowPlayingSheetProps {
   onOpenTagEditor: (track: Track) => void;
   onToggleLike?: (trackId: string) => void;
   onToggleCacheOffline?: (trackId: string) => void;
-  onOpenCarPlay?: () => void;
 }
 
 export const NowPlayingSheet: React.FC<NowPlayingSheetProps> = ({
@@ -62,7 +60,6 @@ export const NowPlayingSheet: React.FC<NowPlayingSheetProps> = ({
   onOpenTagEditor,
   onToggleLike,
   onToggleCacheOffline,
-  onOpenCarPlay,
 }) => {
   const [activeTab, setActiveTab] = useState<'player' | 'lyrics' | 'queue'>('player');
   const [isShuffle, setIsShuffle] = useState(false);
@@ -448,20 +445,6 @@ export const NowPlayingSheet: React.FC<NowPlayingSheetProps> = ({
             <Airplay className="w-5 h-5" />
             <span className="text-[10px] font-medium">AirPlay</span>
           </button>
-
-          {onOpenCarPlay && (
-            <button
-              onClick={() => {
-                audioEngine.playHapticClick();
-                onOpenCarPlay();
-              }}
-              className="flex flex-col items-center gap-1 p-2 rounded-xl text-neutral-400 hover:text-white transition-colors"
-              title="Launch Apple CarPlay Simulator"
-            >
-              <Car className="w-5 h-5" />
-              <span className="text-[10px] font-medium">CarPlay</span>
-            </button>
-          )}
 
           <button
             onClick={() => {
